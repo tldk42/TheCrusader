@@ -6,7 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TCMovementComponent.generated.h"
 
-class ATheCrusaderCharacter;
+class ATCCharacterBase;
 
 USTRUCT(BlueprintType)
 struct FTCGroundInfo
@@ -43,11 +43,17 @@ public:
 	/** Ground 정보를 반환 */
 	UFUNCTION(BlueprintCallable, Category = "EssentialData")
 	const FTCGroundInfo& GetGroundInfo();
+#pragma region UCharacterMovementComponent Interface
+	virtual void PhysicsRotation(float DeltaTime) override;
 
 protected:
+	// 이동 상태에 따라서 가속도를 보간한다.
+	virtual FVector ConstrainInputAcceleration(const FVector& InputAcceleration) const override;
 	// SlideAlongSurface 는 이동하다가 충돌 발생시 그냥 제자리에 멈춰 벽이나 경사로에 "달라붙기" 보다는, 그 표면을 타고 부드럽게 미끄러지도록 하는 데 관련된 물리 계산 처리를 합니다.
 	virtual float SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal, FHitResult& Hit,
 									bool bHandleImpact) override;
+
+#pragma endregion UCharacterMovementComponent Interface
 public:
 	UFUNCTION(BlueprintCallable)
 	bool WasSlideAlongSurfaceBlockedRecently(float Tolerance) const;

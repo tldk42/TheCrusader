@@ -3,6 +3,7 @@
 
 #include "Character/Movement/TCMovementComponent.h"
 
+#include "Character/TCCharacterBase.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 
@@ -71,6 +72,30 @@ const FTCGroundInfo& UTCMovementComponent::GetGroundInfo()
 	CachedGroundInfo.LastUpdateFrame = GFrameCounter;
 
 	return CachedGroundInfo;
+}
+
+void UTCMovementComponent::PhysicsRotation(float DeltaTime)
+{
+	// const ATheCrusaderCharacter* const Character = Cast<ATheCrusaderCharacter>(CharacterOwner);
+	//
+	// if ()
+
+	Super::PhysicsRotation(DeltaTime);
+}
+
+FVector UTCMovementComponent::ConstrainInputAcceleration(const FVector& InputAcceleration) const
+{
+	FVector Result = InputAcceleration;
+	const float InputAccelerationSize = InputAcceleration.Size();
+	UE_LOG(LogTemp, Warning, TEXT("%f"), InputAccelerationSize);
+	if (InputAccelerationSize > SMALL_NUMBER)
+	{
+		const float ScaledInputAccelerationSize = FMath::Lerp(MinInputAccelerationSize, 1.f, InputAccelerationSize);
+		Result = InputAcceleration * ScaledInputAccelerationSize / InputAccelerationSize;
+	}
+
+	Result = Super::ConstrainInputAcceleration(Result);
+	return Result;
 }
 
 float UTCMovementComponent::SlideAlongSurface(const FVector& Delta, float Time, const FVector& InNormal,
