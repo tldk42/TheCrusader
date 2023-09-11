@@ -5,6 +5,7 @@
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "FTCGameplayTags.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
@@ -15,8 +16,12 @@
 // Sets default values
 ABalian::ABalian()
 	: DesiredSprintSpeed(450),
-	  DesiredWalkSpeed(170)
+	  DesiredWalkSpeed(170),
+	  InteractionCheckFrequency(.1f),
+	  InteractionCheckDistance(225.f)
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
@@ -25,6 +30,8 @@ ABalian::ABalian()
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+
+	BaseEyeHeight = 74.f;
 }
 
 void ABalian::SetIsSprinting(bool bNewIsSprinting)
@@ -34,6 +41,38 @@ void ABalian::SetIsSprinting(bool bNewIsSprinting)
 		bIsSprinting = bNewIsSprinting;
 		OnIsSprintingChanged(bNewIsSprinting);
 	}
+}
+
+void ABalian::SetPlayerMode(EPlayerMode Mode)
+{
+	switch (Mode)
+	{
+	case EPlayerMode::Idle:
+		// GetCameraBoom()->bUsePawnControlRotation = true;
+		// bUseControllerRotationYaw = false;
+		// GetCharacterMovement()->bOrientRotationToMovement = false;
+		PlayerMode = EPlayerMode::Idle;
+		break;
+	case EPlayerMode::Boxer:
+		// GetCharacterMovement()->bUseControllerDesiredRotation = true;
+		// GetCameraBoom()->bUsePawnControlRotation = false;
+		// bUseControllerRotationYaw = true;
+		PlayerMode = EPlayerMode::Boxer;
+		break;
+	case EPlayerMode::TwoHandSword:
+		break;
+	case EPlayerMode::OneHandSword:
+		break;
+	case EPlayerMode::Spear:
+		break;
+	case EPlayerMode::Hammer:
+		break;
+	case EPlayerMode::Bow:
+		break;
+	default: ;
+	}
+
+	GetMesh()->LinkAnimClassLayers(AnimLayers[Mode]);
 }
 
 // Called when the game starts or when spawned
@@ -150,23 +189,34 @@ void ABalian::Look(const FInputActionValue& Value)
 void ABalian::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (GetWorld()->TimeSince(InteractionData.LastInteractionCheckTime) > InteractionCheckFrequency)
+	{
+		PerformInteractionCheck();
+	}
 }
 
 void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	if (UTCInputComponent* EnhancedInputComponent = CastChecked<UTCInputComponent>(PlayerInputComponent))
 	{
+		const FTCGameplayTags& GameplayTags = FTCGameplayTags::Get();
+
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Look);
 
-		EnhancedInputComponent->BindActionByTag(InputConfig, FGameplayTag::RequestGameplayTag("InputTag.Spacebar"),
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Spacebar,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::SpaceBarClick);
-		EnhancedInputComponent->BindActionByTag(InputConfig, FGameplayTag::RequestGameplayTag("InputTag.LMB"),
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_LMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::LMBClick);
-		EnhancedInputComponent->BindActionByTag(InputConfig, FGameplayTag::RequestGameplayTag("InputTag.RMB"),
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::RMBClick);
-		EnhancedInputComponent->BindActionByTag(InputConfig, FGameplayTag::RequestGameplayTag("InputTag.RMB"),
-												ETriggerEvent::Completed, this, &ThisClass::RMBCompleted);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
+		                                        ETriggerEvent::Completed, this, &ThisClass::RMBCompleted);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::BeginInteract);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
+		                                        ETriggerEvent::Completed, this, &ThisClass::EndInteract);
 	}
 }
 
@@ -182,9 +232,9 @@ void ABalian::SpaceBarClick()
 void ABalian::LMBClick()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LMBCLICKED"));
-	FGameplayTagContainer Container;
-	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Attack.C"));
-	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+	// FGameplayTagContainer Container;
+	// Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Attack.C"));
+	// AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
 void ABalian::RMBClick()
@@ -201,4 +251,124 @@ void ABalian::RMBCompleted()
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("State.Blocking"));
 	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(Container);
+}
+
+void ABalian::PerformInteractionCheck()
+{
+	// 주기 업데이트
+	InteractionData.LastInteractionCheckTime = GetWorld()->GetTimeSeconds();
+
+	const FVector TraceStart{GetPawnViewLocation()};
+	FVector TraceEnd{TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance)};
+
+	// Player dot Controller
+	float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
+
+	// 플레이어 방향과 바라보는 방향이 90도 이하일 때만 Trace를 할 것.
+	if (LookDirection > 0)
+	{
+		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Orange, false, 1.f, 0, 1.f);
+
+		FCollisionQueryParams QueryParams;
+		QueryParams.AddIgnoredActor(this);
+		FHitResult TraceHit;
+
+		if (GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+		{
+			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
+			{
+				if (TraceHit.GetActor() == InteractionData.CurrentInteractable)
+					return;
+
+				FoundInteractable(TraceHit.GetActor());
+				return;
+			}
+		}
+	}
+
+	NoInteractableFound();
+}
+
+void ABalian::FoundInteractable(AActor* NewInteractable)
+{
+	if (IsInteracting())
+	{
+		EndInteract();
+	}
+
+	if (InteractionData.CurrentInteractable)
+	{
+		TargetInteractable = InteractionData.CurrentInteractable;
+		TargetInteractable->EndFocus();
+	}
+
+	InteractionData.CurrentInteractable = NewInteractable;
+	TargetInteractable = NewInteractable;
+
+	TargetInteractable->BeginFocus();
+}
+
+void ABalian::NoInteractableFound()
+{
+	if (IsInteracting())
+	{
+		GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
+	}
+
+	if (InteractionData.CurrentInteractable)
+	{
+		if (IsValid(TargetInteractable.GetObject()))
+		{
+			TargetInteractable->EndFocus();
+		}
+
+		// Hide Interaction Widget on the HUD
+
+		InteractionData.CurrentInteractable = nullptr;
+		TargetInteractable = nullptr;
+	}
+}
+
+void ABalian::BeginInteract()
+{
+	// 동일한 것을 보고있는지 확인하는 안전장치(변한게 있나?)
+	PerformInteractionCheck();
+
+	if (InteractionData.CurrentInteractable)
+	{
+		if (IsValid(TargetInteractable.GetObject()))
+		{
+			TargetInteractable->BeginInteract();
+
+			if (FMath::IsNearlyZero(TargetInteractable->InteractableData.InteractionDuration, .1f))
+			{
+				Interact();
+			}
+			else
+			{
+				GetWorldTimerManager().SetTimer(TimerHandle_Interaction, this, &ThisClass::Interact,
+				                                TargetInteractable->InteractableData.InteractionDuration, false);
+			}
+		}
+	}
+}
+
+void ABalian::EndInteract()
+{
+	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
+
+	if (IsValid(TargetInteractable.GetObject()))
+	{
+		TargetInteractable->EndInteract();
+	}
+}
+
+void ABalian::Interact()
+{
+	GetWorldTimerManager().ClearTimer(TimerHandle_Interaction);
+
+	if (IsValid(TargetInteractable.GetObject()))
+	{
+		TargetInteractable->Interact(this);
+	}
 }
