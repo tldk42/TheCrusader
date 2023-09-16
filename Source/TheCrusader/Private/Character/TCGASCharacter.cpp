@@ -5,6 +5,7 @@
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Ability/TCGameplayAbility.h"
 #include "GAS/Attribute/TCAttributeSet.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
@@ -12,6 +13,27 @@ ATCGASCharacter::ATCGASCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
+}
+
+void ATCGASCharacter::JumpSectionForCombo()
+{
+	if (IsValid(JumpSectionNotify))
+	{
+		if (bEnableComboPeriod)
+		{
+			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+			const FName CurrentMontageName = AnimInstance->Montage_GetCurrentSection();
+			const UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
+
+			const FName NextSectionName = JumpSectionNotify->JumpSections[UKismetMathLibrary::RandomInteger(
+				JumpSectionNotify->JumpSections.Num())];
+
+			AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
+
+			bEnableComboPeriod = false;
+		}
+	}
 }
 
 float ATCGASCharacter::GetHealth() const
@@ -71,7 +93,7 @@ void ATCGASCharacter::RemoveCharacterAbilities()
 	TArray<FGameplayAbilitySpecHandle> AbilitiesToRemove;
 	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
 	{
-		if ((Spec.SourceObject == this) && CharacterAbilities.Contains(Spec.Ability->GetClass()))
+		if ((Spec.SourceObject == this) && CharacterDefaultAbilities.Contains(Spec.Ability->GetClass()))
 		{
 			AbilitiesToRemove.Add(Spec.Handle);
 		}
@@ -95,11 +117,20 @@ void ATCGASCharacter::AddCharacterAbilities()
 		return;
 	}
 
-	for (TSubclassOf<UTCGameplayAbility>& StartupAbility : CharacterAbilities)
+	for (TSubclassOf<UTCGameplayAbility>& StartupAbility : CharacterDefaultAbilities)
 	{
 		AbilitySystemComponent->GiveAbility(
 			FGameplayAbilitySpec(StartupAbility, 1,
 			                     1, this));
+	}
+
+	for (const auto& MeleeAbility : MeleeAbilities)
+	{
+		FGameplayAbilitySpecHandle Spec = AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(
+				MeleeAbility.Value, 1,
+				1, this));
+		MeleeAbilitySpec.Add(MeleeAbility.Key, Spec);
 	}
 
 	AbilitySystemComponent->bCharacterAbilitiesGiven = true;
@@ -156,4 +187,3 @@ void ATCGASCharacter::AddStartupEffects()
 
 	AbilitySystemComponent->bStartupEffectsApplied = true;
 }
-
