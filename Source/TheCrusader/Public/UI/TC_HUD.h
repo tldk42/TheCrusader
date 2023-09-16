@@ -6,6 +6,7 @@
 #include "GameFramework/HUD.h"
 #include "TC_HUD.generated.h"
 
+class UPlayerInGameUI;
 class URadialMenu;
 struct FInteractableData;
 class UInteractionWidget;
@@ -40,8 +41,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UMainMenu> MainMenuClass;
 
-	// UPROPERTY(EditInstanceOnly, Category = "Widgets")
-	// TSubclassOf<URadialMenu> RadialMenuClass;
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UPlayerInGameUI> PlayerInGameUIClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
@@ -54,6 +55,9 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 	URadialMenu* RadialMenuWidget;
+
+	UPROPERTY()
+	UPlayerInGameUI* PlayerInGameUI;
 
 	UPROPERTY()
 	UInteractionWidget* InteractionWidget;
