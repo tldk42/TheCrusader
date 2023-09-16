@@ -3,24 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayAbilitySpecHandle.h"
 #include "TCGASCharacter.h"
 #include "Interfaces/Interactable.h"
+#include "TheCrusader.h"
 #include "Balian.generated.h"
 
+class UInventoryComponent;
+class ATC_HUD;
 class UTCInputConfig;
 struct FInputActionValue;
-
-UENUM(BlueprintType)
-enum class EPlayerMode : uint8
-{
-	Idle,
-	Boxer,
-	TwoHandSword,
-	OneHandSword,
-	Spear,
-	Hammer,
-	Bow
-};
 
 USTRUCT()
 struct FInteractionData
@@ -48,10 +40,15 @@ class THECRUSADER_API ABalian : public ATCGASCharacter
 public:
 	ABalian();
 
+	void UpdateInteractionWidget() const;
+	virtual void UpdateHealthBar() const override;
+
 #pragma region GETTER
 
-	FORCEINLINE bool IsInteracting() const {return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction);}
-	
+	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); }
+
+	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; }
+
 	UFUNCTION(BlueprintPure)
 	bool GetIsSprinting() const
 	{
@@ -96,9 +93,16 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 #pragma endregion Character
 
-
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
+
+#pragma region Ability Function
+
+	bool ActivateAbilitiesByWeaponType(EPlayerMode Mode, bool bAllowRemoteActivation);
+
+	void DoMeleeAttack();
+
+#pragma endregion Ability Function
 
 #pragma region InputBinding
 	void Move(const FInputActionValue& Value);
@@ -108,6 +112,8 @@ protected:
 	void LMBClick();
 	void RMBClick();
 	void RMBCompleted();
+	void Dodge();
+	void Roll();
 #pragma endregion InputBinding
 
 #pragma region Interact
@@ -120,7 +126,16 @@ protected:
 #pragma endregion Interac
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "Interaction")
+	UPROPERTY()
+	ATC_HUD* HUD;
+
+	UPROPERTY(VisibleAnywhere, Category = "Character | Inventory")
+	UInventoryComponent* PlayerInventory;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
+	class UMotionWarpingComponent* MotionWarpingComponent;
+
+	UPROPERTY(VisibleAnywhere, Category = "Character | Interaction")
 	TScriptInterface<IInteractable> TargetInteractable;
 
 	float InteractionCheckFrequency;
