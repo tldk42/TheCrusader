@@ -22,7 +22,8 @@ void FTCGameplayTags::AddAllTags(UGameplayTagsManager& Manager)
 	AddTag(InputTag_RMB, "InputTag.RMB", "Right Mouse Button");
 	AddTag(InputTag_Spacebar, "InputTag.Spacebar", "Spacebar Button");
 	AddTag(InputTag_E, "InputTag.E", "E Button");
-	AddTag(InputTag_LAlt, "InputTag.LAlt", "LAlt Button");
+	AddTag(InputTag_Dodge, "InputTag.LAlt", "LAlt Button");
+	AddTag(InputTag_Roll, "InputTag.Roll", "LAlt Button(Roll)");
 }
 
 void FTCGameplayTags::AddTag(FGameplayTag& OutTag, const ANSICHAR* TagName, const ANSICHAR* TagComment)

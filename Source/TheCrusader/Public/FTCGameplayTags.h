@@ -24,7 +24,8 @@ public:
 	FGameplayTag InputTag_RMB;
 	FGameplayTag InputTag_Spacebar;
 	FGameplayTag InputTag_E;
-	FGameplayTag InputTag_LAlt;
+	FGameplayTag InputTag_Dodge;
+	FGameplayTag InputTag_Roll;
 
 protected:
 	void AddAllTags(UGameplayTagsManager& Manager);
