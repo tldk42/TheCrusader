@@ -2,6 +2,8 @@
 
 
 #include "Character/TCGASCharacter.h"
+
+#include "Components/SphereComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Ability/TCGameplayAbility.h"
 #include "GAS/Attribute/TCAttributeSet.h"
@@ -108,6 +110,10 @@ void ATCGASCharacter::RemoveCharacterAbilities()
 	AbilitySystemComponent->bCharacterAbilitiesGiven = false;
 }
 
+void ATCGASCharacter::UpdateHealthBar() const
+{
+}
+
 void ATCGASCharacter::AddCharacterAbilities()
 {
 	// Grant abilities, but only on the server	
@@ -186,4 +192,29 @@ void ATCGASCharacter::AddStartupEffects()
 	}
 
 	AbilitySystemComponent->bStartupEffectsApplied = true;
+}
+
+void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+                                ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
+{
+}
+
+void ATCGASCharacter::OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	if (GetHealth() == 0.f)
+	{
+		UE_LOG(LogTemp, Display, TEXT("DEAD"));
+	}
+}
+
+void ATCGASCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo,
+                                   const FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,
+                                   AActor* DamageCauser)
+{
+	OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
+}
+
+void ATCGASCharacter::HandleHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	OnHealthChanged(DeltaValue, EventTags);
 }
