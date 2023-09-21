@@ -5,7 +5,7 @@
 
 #include "Character/Balian.h"
 #include "Component/Inventory/InventoryComponent.h"
-#include "Item/ItemBase.h"
+#include "Data/ItemDataStructs.h"
 
 
 AItemPickup::AItemPickup()
@@ -13,7 +13,7 @@ AItemPickup::AItemPickup()
 	PrimaryActorTick.bCanEverTick = false;
 
 	PickupMesh = CreateDefaultSubobject<UStaticMeshComponent>("PickupMesh");
-	PickupMesh->SetSimulatePhysics(true);
+	PickupMesh->SetSimulatePhysics(false);
 	SetRootComponent(PickupMesh);
 }
 
@@ -21,7 +21,10 @@ void AItemPickup::BeginPlay()
 {
 	Super::BeginPlay();
 
-	InitializePickup(UItemBase::StaticClass(), ItemQuantity);
+	if (!ItemRef)
+	{
+		InitializePickup(UItemBase::StaticClass(), ItemQuantity);
+	}
 }
 
 void AItemPickup::BeginFocus()
@@ -62,29 +65,36 @@ void AItemPickup::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const
 	{
 		const FItemData* ItemData = ItemDataTable->FindRow<FItemData>(DesiredItemID, DesiredItemID.ToString());
 
-		ItemRef = NewObject<UItemBase>(this, BaseClass);
+		if (ItemData)
+		{
+			ItemRef = NewObject<UItemBase>(this, BaseClass);
 
-		ItemRef->ID = ItemData->ItemID;
-		ItemRef->ItemType = ItemData->ItemType;
-		ItemRef->ItemQuality = ItemData->ItemQuality;
-		ItemRef->NumericData = ItemData->NumericData;
-		ItemRef->TextData = ItemData->TextData;
-		ItemRef->AssetData = ItemData->AssetData;
+			ItemRef->ID = ItemData->ItemID;
+			ItemRef->ItemType = ItemData->ItemType;
+			ItemRef->ItemQuality = ItemData->ItemQuality;
+			ItemRef->ItemStatistics = ItemData->ItemStatistics;
+			ItemRef->TextData = ItemData->TextData;
+			ItemRef->NumericData = ItemData->NumericData;
+			ItemRef->AssetData = ItemData->AssetData;
+			ItemRef->bIsPickup = true;
 
-		InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
+			InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
 
-		PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
+			PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
 
-		UpdateInteractableData();
+			UpdateInteractableData();
+		}
 	}
 }
 
 void AItemPickup::InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity)
 {
 	ItemRef = ItemToDrop;
+
 	InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
-	ItemRef->NumericData.Weight = ItemToDrop->GetItemSingleWeight();
+
 	PickupMesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
+
 	UpdateInteractableData();
 }
 
@@ -139,17 +149,17 @@ void AItemPickup::UpdateInteractableData()
 void AItemPickup::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
+	
 	const FName ChangedPropertyName = PropertyChangedEvent.Property
 		                                  ? PropertyChangedEvent.Property->GetFName()
 		                                  : NAME_None;
-
+	
 	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(AItemPickup, DesiredItemID))
 	{
 		if (ItemDataTable)
 		{
 			const FString ContextString{DesiredItemID.ToString()};
-
+	
 			if (const FItemData* ItemData = ItemDataTable->FindRow<FItemData>(DesiredItemID, DesiredItemID.ToString()))
 			{
 				PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);

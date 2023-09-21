@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "ItemBase.generated.h"
 
+class UInventoryComponent;
 class ABalian;
 /**
  * 
@@ -19,8 +20,10 @@ class THECRUSADER_API UItemBase : public UObject
 public:
 	UItemBase();
 
+	void ResetItemFlags();
+
 	UFUNCTION(Category = "Item")
-	UItemBase* CreateItemCopy() const;
+	virtual UItemBase* CreateItemCopy() const;
 
 	UFUNCTION(Category = "Item")
 	FORCEINLINE float GetItemStackWeight() const { return Quantity * NumericData.Weight; }
@@ -34,7 +37,7 @@ public:
 	UFUNCTION(Category = "Item")
 	void SetQuantity(const int32 NewQuantity);
 
-	UFUNCTION(Category = "Item") 
+	UFUNCTION(Category = "Item")
 	virtual void Use(ABalian* Character);
 
 protected:
@@ -44,12 +47,12 @@ protected:
 	}
 
 public:
-	// UPROPERTY()
-	// UInventoryComponent* OwningInventory;
+	UPROPERTY()
+	UInventoryComponent* OwningInventory;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	FName ID;
-	
+
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	int32 Quantity;
 
@@ -71,4 +74,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	FItemAssetData AssetData;
 
+	bool bIsCopy;
+	bool bIsPickup;
 };
