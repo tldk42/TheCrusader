@@ -3,12 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayAbilitySpecHandle.h"
 #include "TCGASCharacter.h"
 #include "Interfaces/Interactable.h"
 #include "TheCrusader.h"
 #include "Balian.generated.h"
 
+class UPlayerItemSlot;
+enum class EEquipmentPart : uint8;
+class AMyItem;
+class AItemWeapon;
 class UInventoryComponent;
 class ATC_HUD;
 class UTCInputConfig;
@@ -42,12 +45,16 @@ public:
 
 	void UpdateInteractionWidget() const;
 	virtual void UpdateHealthBar() const override;
+	void EquipToHand() const;
+	void AttachToPelvis() const;
 
 #pragma region GETTER
 
 	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); }
 
 	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; }
+
+	FORCEINLINE AMyItem* GetCurrentWeapon() const { return CurrentWeapon; }
 
 	UFUNCTION(BlueprintPure)
 	bool GetIsSprinting() const
@@ -81,7 +88,10 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetIsSprinting(bool bNewIsSprinting);
 
-	void SetPlayerMode(EPlayerMode Mode);
+	bool SetAnimLayer(EWeaponType Mode);
+
+	void SetCurrentWeapon(AMyItem* Weapon);
+
 #pragma endregion SETTER
 
 protected:
@@ -96,9 +106,13 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
 
+	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+	                       ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser) override;
+	virtual void OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags) override;
+
 #pragma region Ability Function
 
-	bool ActivateAbilitiesByWeaponType(EPlayerMode Mode, bool bAllowRemoteActivation);
+	bool ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation);
 
 	void DoMeleeAttack();
 
@@ -132,6 +146,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Character | Inventory")
 	UInventoryComponent* PlayerInventory;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Inventory", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	TMap<EEquipmentPart, UPlayerItemSlot*> ItemSlot;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
 	class UMotionWarpingComponent* MotionWarpingComponent;
 
@@ -148,11 +165,18 @@ protected:
 
 private:
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	EPlayerMode PlayerMode;
+	EWeaponType PlayerMode;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	AMyItem* CurrentWeapon;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TMap<EPlayerMode, TSubclassOf<UAnimInstance>> AnimLayers;
-
+	TMap<EWeaponType, TSubclassOf<UAnimInstance>> AnimLayers;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TMap<EWeaponType, UAnimMontage*> EquipMontages;
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TMap<EWeaponType, UAnimMontage*> AttachMontages;
+	
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 	UTCInputConfig* InputConfig;
 

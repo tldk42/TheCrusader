@@ -2,7 +2,6 @@
 
 
 #include "Character/Balian.h"
-
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "FTCGameplayTags.h"
@@ -13,6 +12,7 @@
 #include "Input/TCInputComponent.h"
 #include "MotionWarpingComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Item/Weapon/MyItem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Player/TCPlayerState.h"
@@ -141,6 +141,17 @@ void ABalian::Tick(float DeltaTime)
 	}
 }
 
+void ABalian::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+                        ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
+{
+	Super::OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
+}
+
+void ABalian::OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	UpdateHealthBar();
+}
+
 void ABalian::SetIsSprinting(bool bNewIsSprinting)
 {
 	if (bNewIsSprinting != bIsSprinting)
@@ -150,37 +161,81 @@ void ABalian::SetIsSprinting(bool bNewIsSprinting)
 	}
 }
 
-void ABalian::SetPlayerMode(EPlayerMode Mode)
+void ABalian::EquipToHand() const
+{
+	if (!CurrentWeapon->bEquipped)
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                                 CurrentWeapon->GetItemData()->WeaponData.EquipmentSocket);
+		CurrentWeapon->bEquipped = true;
+	}
+}
+
+void ABalian::AttachToPelvis() const
+{
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                                 CurrentWeapon->GetItemData()->WeaponData.AttachmentSocket);
+		CurrentWeapon->bEquipped = false;
+	}
+}
+
+bool ABalian::SetAnimLayer(EWeaponType Mode)
 {
 	switch (Mode)
 	{
-	case EPlayerMode::Idle:
-		// GetCameraBoom()->bUsePawnControlRotation = true;
-		// bUseControllerRotationYaw = false;
+	case EWeaponType::Idle:
 		GetCharacterMovement()->bUseControllerDesiredRotation = false;
 		GetCharacterMovement()->bOrientRotationToMovement = false;
-		PlayerMode = EPlayerMode::Idle;
-		break;
-	case EPlayerMode::Boxer:
-		// GetCharacterMovement()->bUseControllerDesiredRotation = false;
-		bUseControllerRotationYaw = false;
+		HUD->UpdateActiveRadialWidget(0);
+		PlayerMode = EWeaponType::Idle;
+		if (CurrentWeapon && CurrentWeapon->bEquipped)
+			PlayAnimMontage(AttachMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
+		return true;
+	case EWeaponType::Boxer:
 		GetCharacterMovement()->bOrientRotationToMovement = true;
-		PlayerMode = EPlayerMode::Boxer;
+		HUD->UpdateActiveRadialWidget(1);
+		PlayerMode = EWeaponType::Boxer;
+		if (CurrentWeapon && CurrentWeapon->bEquipped)
+			PlayAnimMontage(AttachMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
 		break;
-	case EPlayerMode::TwoHandSword:
+	case EWeaponType::TwoHandSword:
+	case EWeaponType::OneHandSword:
+	case EWeaponType::Spear:
+	case EWeaponType::Hammer:
+		if (!CurrentWeapon)
+			return false;
+	// 소켓에 부착
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		HUD->UpdateActiveRadialWidget(2);
+		PlayerMode = CurrentWeapon->GetItemData()->WeaponData.Type;
+		PlayAnimMontage(EquipMontages[PlayerMode]);
 		break;
-	case EPlayerMode::OneHandSword:
-		break;
-	case EPlayerMode::Spear:
-		break;
-	case EPlayerMode::Hammer:
-		break;
-	case EPlayerMode::Bow:
+	case EWeaponType::Bow:
 		break;
 	default: ;
 	}
+	if (AnimLayers.Contains(Mode))
+	{
+		GetMesh()->LinkAnimClassLayers(AnimLayers[Mode]);
+		return true;
+	}
+	return false;
+}
 
-	GetMesh()->LinkAnimClassLayers(AnimLayers[Mode]);
+void ABalian::SetCurrentWeapon(AMyItem* Weapon)
+{
+	if (Weapon)
+	{
+		if (CurrentWeapon)
+		{
+			// Pickup 시도 (인벤토리에 넣음)
+			CurrentWeapon->Interact(this);
+			CurrentWeapon = nullptr;
+		}
+		CurrentWeapon = Weapon;
+	}
 }
 
 void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -233,6 +288,9 @@ void ABalian::Move(const FInputActionValue& Value)
 
 void ABalian::Look(const FInputActionValue& Value)
 {
+	if (HUD->bIsRadialMenuVisible)
+		return;
+
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
@@ -246,7 +304,7 @@ void ABalian::Look(const FInputActionValue& Value)
 
 #pragma region ASCBinding
 
-bool ABalian::ActivateAbilitiesByWeaponType(EPlayerMode Mode, bool bAllowRemoteActivation)
+bool ABalian::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
 {
 	const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
 
@@ -279,7 +337,13 @@ void ABalian::DoMeleeAttack()
 	else
 	{
 		// 새로 몽타주를 재생한다.
-		ActivateAbilitiesByWeaponType(PlayerMode, true);
+		if (ActivateAbilitiesByWeaponType(PlayerMode, true))
+		{
+			if (PlayerMode == EWeaponType::Idle)
+			{
+				SetAnimLayer(EWeaponType::Boxer);
+			}
+		}
 	}
 }
 
