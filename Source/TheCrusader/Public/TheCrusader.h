@@ -3,3 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+UENUM(BlueprintType)
+enum class EWeaponType : uint8
+{
+	Idle,
+	Boxer,
+	TwoHandSword,
+	OneHandSword,
+	Spear,
+	Hammer,
+	Bow
+};
