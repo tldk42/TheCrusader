@@ -14,7 +14,7 @@ UCLASS()
 class THECRUSADER_API UPlayerInGameUI : public UUserWidget
 {
 	GENERATED_BODY()
-
+	
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player Health", meta = (BindWidget))
 	UProgressBar* HealthBar;

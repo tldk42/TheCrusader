@@ -3,6 +3,8 @@
 
 #include "UI/TC_HUD.h"
 
+#include "TheCrusader.h"
+#include "Components/ProgressBar.h"
 #include "UI/MainMenu.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/PlayerWindow/PlayerInGameUI.h"
@@ -86,20 +88,30 @@ void ATC_HUD::HideMenu()
 	}
 }
 
-void ATC_HUD::ShowRadialWidget() const
+void ATC_HUD::ShowRadialWidget()
 {
 	if (RadialMenuWidget)
 	{
 		RadialMenuWidget->SetVisibility(ESlateVisibility::Visible);
+		bIsRadialMenuVisible = true;
 	}
 }
 
-void ATC_HUD::HideRadialWidget() const
+void ATC_HUD::HideRadialWidget()
 {
 	if (RadialMenuWidget)
 	{
 		RadialMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 		RadialMenuWidget->UpdateActiveBar();
+		bIsRadialMenuVisible = false;
+	}
+}
+
+void ATC_HUD::UpdateActiveRadialWidget(const int Index) const
+{
+	if (RadialMenuWidget)
+	{
+		RadialMenuWidget->UpdateActiveBar(Index);
 	}
 }
 
@@ -130,4 +142,9 @@ void ATC_HUD::UpdateInteractionWidget(const FInteractableData* InteractableData)
 
 		InteractionWidget->UpdateWidget(InteractableData);
 	}
+}
+
+void ATC_HUD::SetHP(float InPercent)
+{
+	PlayerInGameUI->HealthBar->SetPercent(InPercent);
 }

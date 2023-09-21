@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "RadialMenu.generated.h"
 
+enum class EWeaponType : uint8;
 class URadialButtonBase;
 class UCanvasPanel;
 /**
@@ -17,8 +18,10 @@ class THECRUSADER_API URadialMenu : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	void UpdateActiveBar(int Index) const;
+
 	UFUNCTION(BlueprintCallable)
-	void UpdateActiveBar() const;
+	void UpdateActiveBar();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -26,9 +29,8 @@ protected:
 	virtual FReply NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
-
 	void SpawnButtons();
-	
+
 	float GetMouseRotation() const;
 
 	void CalculateSection();
@@ -36,9 +38,8 @@ private:
 	URadialButtonBase* GetInstancedButton(int Index) const;
 
 private:
-
 	bool bSpawned = false;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialMenu",
 		meta = (AllowPrivateAccess = true, BindWidget))
 	UCanvasPanel* ButtonPanel;
@@ -60,7 +61,9 @@ private:
 	TArray<float> MinBounds;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialMenu", meta = (AllowPrivateAccess = true))
-	float SelectedIndex;
+	int SelectedIndex;
+
+	int CachedIndex = -1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialMenu", meta = (AllowPrivateAccess = true))
 	FVector InitialRotationAxis;

@@ -6,13 +6,15 @@
 #include "Components/Border.h"
 #include "Components/Image.h"
 #include "Components/TextBlock.h"
-#include "Item/ItemBase.h"
+#include "Data/ItemDataStructs.h"
+#include "Item/Data/ItemBase.h"
+#include "UI/Inventory/InventoryActionMenu.h"
 #include "UI/Inventory/InventoryTooltip.h"
 
 void UInventoryItemSlot::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	if (ToolTipClass)
+	if (ToolTipClass && ItemReference)
 	{
 		UInventoryTooltip* Tooltip = CreateWidget<UInventoryTooltip>(this, ToolTipClass);
 		Tooltip->InventorySlotBeingHovered = this;
@@ -60,7 +62,19 @@ void UInventoryItemSlot::NativeConstruct()
 
 FReply UInventoryItemSlot::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	FReply Reply = FReply::Unhandled();
+
+	if (!ItemReference)
+		return Reply;
+
+	if (InMouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
+	{
+		UInventoryActionMenu* ActionMenu = CreateWidget<UInventoryActionMenu>(this, ActionMenuClass);
+		ActionMenu->AddToViewport(10);
+		ActionMenu->SourceSlot = this;
+		Reply = FReply::Handled();
+	}
+	return Reply;
 }
 
 void UInventoryItemSlot::NativeOnDragDetected(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent,

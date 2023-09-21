@@ -1,27 +1,40 @@
 ﻿// Written by jaegang lim
 
 #include "UI/Radial/RadialMenu.h"
-
+#include "TheCrusader.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include "Player/TCPlayerController.h"
 #include "UI/Radial/RadialButtonBase.h"
 
-void URadialMenu::UpdateActiveBar() const
+void URadialMenu::UpdateActiveBar(const int Index) const
 {
-	const auto ActivatedBtn = GetInstancedButton(SelectedIndex);
-	if (!ActivatedBtn)
-		return;
-	if (ActivatedBtn->bLocked)
-		return;
-	RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
+	RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * Index);
+}
 
-	ATCPlayerController* Player = Cast<ATCPlayerController>(GetOwningPlayer());
-	if (Player)
+void URadialMenu::UpdateActiveBar()
+{
+	// 동일한 버튼을 업데이트할 필요 없음
+	if (CachedIndex != SelectedIndex)
 	{
-		Player->UpdatePlayerState(ActivatedBtn->ButtonType);
+		const auto ActivatedBtn = GetInstancedButton(SelectedIndex);
+		if (!ActivatedBtn)
+			return;
+		if (ActivatedBtn->bLocked)
+			return;
+
+		ATCPlayerController* Player = Cast<ATCPlayerController>(GetOwningPlayer());
+		if (Player)
+		{
+			if (Player->UpdatePlayerState(ActivatedBtn->ButtonType))
+			{
+				RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
+				CachedIndex = SelectedIndex;
+			}
+		}
 	}
 }
 
@@ -90,16 +103,29 @@ void URadialMenu::SpawnButtons()
 float URadialMenu::GetMouseRotation() const
 {
 	float MouseX, MouseY;
+	float ControllerX, ControllerY;
 	FVector MouseLocation;
+
+
 	if (GetOwningPlayer()->GetMousePosition(MouseX, MouseY))
 	{
 		MouseLocation = FVector(MouseX, MouseY, 0.f);
+		GetOwningPlayer()->GetInputAnalogStickState(EControllerAnalogStick::CAS_RightStick, ControllerX, ControllerY);
 	}
 	const FVector2D ScreenCenter2D = UWidgetLayoutLibrary::GetViewportSize(GetWorld()) / 2;
 	const FVector ScreenCenter = FVector(ScreenCenter2D.X, ScreenCenter2D.Y, 0.f);
 
 	// 마우스 위치에서 화면 정중을 바라보는 로테이션
-	const FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(MouseLocation, ScreenCenter);
+	FRotator LookRot = UKismetMathLibrary::FindLookAtRotation(MouseLocation, ScreenCenter);
+	if (ControllerX != 0.f || ControllerY != 0.f)
+	{
+		const float RightStickXInDegree = UKismetMathLibrary::MapRangeClamped(
+			ControllerX, -1.f, 1.f, 1.f, UWidgetLayoutLibrary::GetViewportSize(GetWorld()).X);
+		const float RightStickYInDegree = UKismetMathLibrary::MapRangeClamped(
+			ControllerY, -1.f, 1.f, 1.f, UWidgetLayoutLibrary::GetViewportSize(GetWorld()).Y);
+		const FVector ControllerLocation{RightStickXInDegree, RightStickYInDegree, 0};
+		LookRot = UKismetMathLibrary::FindLookAtRotation(ControllerLocation, ScreenCenter);
+	}
 	// UE_LOG(LogTemp, Warning, TEXT("%f"), 180.f - LookRot.Yaw);
 	return (180.f - LookRot.Yaw);
 }

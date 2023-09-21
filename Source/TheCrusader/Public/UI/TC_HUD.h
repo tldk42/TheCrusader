@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
+#include "Interfaces/HealthHUD.h"
 #include "TC_HUD.generated.h"
 
+enum class EWeaponType : uint8;
 class UPlayerInGameUI;
 class URadialMenu;
 struct FInteractableData;
@@ -15,7 +17,7 @@ class UMainMenu;
  * 
  */
 UCLASS()
-class THECRUSADER_API ATC_HUD : public AHUD
+class THECRUSADER_API ATC_HUD : public AHUD , public IHealthHUD
 {
 	GENERATED_BODY()
 
@@ -27,12 +29,15 @@ public:
 	void ToggleMenu();
 	void HideMenu();
 
-	void ShowRadialWidget() const;
-	void HideRadialWidget() const;
+	void ShowRadialWidget();
+	void HideRadialWidget();
+	void UpdateActiveRadialWidget(const int Index) const;
 
 	void ShowInteractionWidget() const;
 	void HideInteractionWidget() const;
 	void UpdateInteractionWidget(const FInteractableData* InteractableData) const;
+
+	virtual void SetHP(float InPercent) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -48,6 +53,8 @@ public:
 	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
 
 	bool bIsMenuVisible;
+
+	bool bIsRadialMenuVisible;
 
 protected:
 	UPROPERTY()

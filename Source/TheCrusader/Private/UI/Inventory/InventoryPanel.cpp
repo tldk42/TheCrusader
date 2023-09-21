@@ -6,7 +6,6 @@
 #include "Component/Inventory/InventoryComponent.h"
 #include "Components/TextBlock.h"
 #include "Components/WrapBox.h"
-#include "Item/ItemBase.h"
 #include "UI/Inventory/InventoryItemSlot.h"
 
 bool UInventoryPanel::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent,
@@ -27,9 +26,11 @@ void UInventoryPanel::RefreshInventory()
 		{
 			UInventoryItemSlot* ItemSlot = CreateWidget<UInventoryItemSlot>(this, InventorySlotClass);
 			ItemSlot->SetItemReference(InventoryItem);
-			
+
 			InventoryPanel->AddChildToWrapBox(ItemSlot);
 		}
+
+		SetInfoText();
 	}
 }
 
