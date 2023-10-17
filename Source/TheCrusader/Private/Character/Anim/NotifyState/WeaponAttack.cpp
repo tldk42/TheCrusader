@@ -2,8 +2,7 @@
 
 
 #include "Character/Anim/NotifyState/WeaponAttack.h"
-
-#include "AbilitySystemComponent.h"
+#include "AbilitySystemBlueprintLibrary.h"
 #include "Character/TCGASCharacter.h"
 #include "Kismet/KismetSystemLibrary.h"
 

@@ -57,4 +57,5 @@ protected:
 	UTextBlock* ItemQuantity;
 
 	friend class UInventoryActionMenu;
+	friend class UEquippedActionMenu;
 };

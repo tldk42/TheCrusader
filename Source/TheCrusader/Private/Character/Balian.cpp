@@ -11,12 +11,15 @@
 #include "GAS/TCAbilitySystemComponent.h"
 #include "Input/TCInputComponent.h"
 #include "MotionWarpingComponent.h"
+#include "Character/EnemyBase.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Item/Weapon/MyItem.h"
-#include "Kismet/GameplayStatics.h"
+#include "Item/Data/ItemEquipmentBase.h"
+#include "Item/Weapon/Item_Weapon.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Player/TCPlayerState.h"
+#include "Player/Camera/TCPlayerCameraBehavior.h"
 #include "UI/TC_HUD.h"
+#include "UI/Inventory/Player/PlayerItemSlot.h"
 
 
 // Sets default values
@@ -37,11 +40,15 @@ ABalian::ABalian()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	PlayerInventory = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
-	PlayerInventory->SetSlotsCapacity(20);
-	PlayerInventory->SetWeightCapacity(50.f);
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
+	InventoryComponent->SetSlotsCapacity(20);
+	InventoryComponent->SetWeightCapacity(50.f);
 
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>("MotionWarpingComponent");
+
+	ShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>("Shield");
+	ShieldMesh->SetupAttachment(GetMesh(), TEXT("lowerarm_lSocket"));
+	ShieldMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	BaseEyeHeight = 74.f;
 }
@@ -139,18 +146,10 @@ void ABalian::Tick(float DeltaTime)
 	{
 		PerformInteractionCheck();
 	}
+
+	FocusCameraToTarget();
 }
 
-void ABalian::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
-                        ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
-{
-	Super::OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
-}
-
-void ABalian::OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
-{
-	UpdateHealthBar();
-}
 
 void ABalian::SetIsSprinting(bool bNewIsSprinting)
 {
@@ -183,18 +182,30 @@ void ABalian::AttachToPelvis() const
 
 bool ABalian::SetAnimLayer(EWeaponType Mode)
 {
+	if (Mode == EWeaponType::TwoHandSword && CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type ==
+		EWeaponType::OneHandSword)
+	{
+		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                              TEXT("lowerarm_lSocket"));
+	}
+	else
+	{
+		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                              TEXT("shield_equip"));
+	}
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+
 	switch (Mode)
 	{
 	case EWeaponType::Idle:
 		GetCharacterMovement()->bUseControllerDesiredRotation = false;
 		GetCharacterMovement()->bOrientRotationToMovement = false;
-		HUD->UpdateActiveRadialWidget(0);
+		HUD->UpdateActiveRadialWidget(2);
 		PlayerMode = EWeaponType::Idle;
 		if (CurrentWeapon && CurrentWeapon->bEquipped)
 			PlayAnimMontage(AttachMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
 		return true;
 	case EWeaponType::Boxer:
-		GetCharacterMovement()->bOrientRotationToMovement = true;
 		HUD->UpdateActiveRadialWidget(1);
 		PlayerMode = EWeaponType::Boxer;
 		if (CurrentWeapon && CurrentWeapon->bEquipped)
@@ -207,8 +218,7 @@ bool ABalian::SetAnimLayer(EWeaponType Mode)
 		if (!CurrentWeapon)
 			return false;
 	// 소켓에 부착
-		GetCharacterMovement()->bOrientRotationToMovement = true;
-		HUD->UpdateActiveRadialWidget(2);
+		HUD->UpdateActiveRadialWidget(0);
 		PlayerMode = CurrentWeapon->GetItemData()->WeaponData.Type;
 		PlayAnimMontage(EquipMontages[PlayerMode]);
 		break;
@@ -216,26 +226,98 @@ bool ABalian::SetAnimLayer(EWeaponType Mode)
 		break;
 	default: ;
 	}
-	if (AnimLayers.Contains(Mode))
+	if (AnimLayers.Contains(PlayerMode))
 	{
-		GetMesh()->LinkAnimClassLayers(AnimLayers[Mode]);
+		GetMesh()->LinkAnimClassLayers(AnimLayers[PlayerMode]);
 		return true;
 	}
 	return false;
 }
 
-void ABalian::SetCurrentWeapon(AMyItem* Weapon)
+void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 {
-	if (Weapon)
+	if (CurrentWeapon)
 	{
-		if (CurrentWeapon)
+		// Pickup 시도 (인벤토리에 넣음)
+		CurrentWeapon->Interact(this);
+		CurrentWeapon = nullptr;
+
+		if (Weapon)
 		{
-			// Pickup 시도 (인벤토리에 넣음)
-			CurrentWeapon->Interact(this);
-			CurrentWeapon = nullptr;
+			CurrentWeapon = Weapon;
+
+			SetAnimLayer(CurrentWeapon->GetItemData()->WeaponData.Type);
 		}
-		CurrentWeapon = Weapon;
 	}
+	else
+	{
+		if (Weapon)
+		{
+			CurrentWeapon = Weapon;
+		}
+		else
+		{
+			SetAnimLayer(PlayerMode);
+		}
+	}
+}
+
+void ABalian::AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip)
+{
+	switch (EquipmentPart)
+	{
+	case EEquipmentPart::Head:
+		break;
+	case EEquipmentPart::Torso:
+		break;
+	case EEquipmentPart::Arm:
+		break;
+	case EEquipmentPart::Pants:
+		break;
+	case EEquipmentPart::Feet:
+		break;
+	case EEquipmentPart::Weapon:
+		break;
+	case EEquipmentPart::Shield:
+		ShieldMesh->SetStaticMesh(ItemToEquip->AssetData.Mesh);
+		if (PlayerMode == EWeaponType::OneHandSword)
+		{
+		}
+		break;
+	case EEquipmentPart::Bow:
+		break;
+	default: ;
+	}
+
+	// TODO: + 능력치 조정
+}
+
+void ABalian::DettachEquipment(EEquipmentPart EquipmentPart)
+{
+	switch (EquipmentPart)
+	{
+	case EEquipmentPart::Head:
+		break;
+	case EEquipmentPart::Torso:
+		break;
+	case EEquipmentPart::Arm:
+		break;
+	case EEquipmentPart::Pants:
+		break;
+	case EEquipmentPart::Feet:
+		break;
+	case EEquipmentPart::Weapon:
+		break;
+	case EEquipmentPart::Shield:
+		ShieldMesh->SetStaticMesh(nullptr);
+		break;
+	case EEquipmentPart::Bow:
+		break;
+	default: ;
+	}
+
+	// TODO: + 능력치 조정
+	GetInventory()->DettachEquipmentItem(EquipmentPart);
 }
 
 void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -252,7 +334,7 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_LMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::LMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::RMBClick);
+		                                        ETriggerEvent::Started, this, &ThisClass::RMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
 		                                        ETriggerEvent::Completed, this, &ThisClass::RMBCompleted);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
@@ -263,6 +345,10 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		                                        ETriggerEvent::Canceled, this, &ThisClass::Dodge);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Roll,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::Roll);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_MouseMiddle,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::MMBClick);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Numpad1,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::Ability1);
 	}
 }
 
@@ -306,50 +392,81 @@ void ABalian::Look(const FInputActionValue& Value)
 
 bool ABalian::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
 {
-	const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
-
-	if (FoundHandle && AbilitySystemComponent)
-	{
-		return AbilitySystemComponent->TryActivateAbility(*FoundHandle, bAllowRemoteActivation);
-	}
-	return false;
+	// const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
+	//
+	// if (FoundHandle && AbilitySystemComponent)
+	// {
+	// 	return AbilitySystemComponent->TryActivateAbility(*FoundHandle, bAllowRemoteActivation);
+	// }
+	// return false;
+	return Super::ActivateAbilitiesByWeaponType(Mode, bAllowRemoteActivation);
 }
 
-void ABalian::DoMeleeAttack()
+void ABalian::FocusCameraToTarget()
 {
-	// 일시정지인지 다른 스킬을 사용하고있는지 살아있는지 확인해야함
-	if (UGameplayStatics::IsGamePaused(GetWorld()))
-		return;
-
-	FGameplayTagContainer CheckThisTagContainer;
-	CheckThisTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.LightAttack"));
-
-	TArray<UTCGameplayAbility*> GameplayAbilities;
-
-	AbilitySystemComponent->GetActiveAbilitiesWithTags(CheckThisTagContainer, GameplayAbilities);
-
-	// 이미 MeleeAttack을 진행중인가?
-	if (GameplayAbilities.Num() > 0)
+	if (bIsTargeting)
 	{
-		// 콤보를 업데이트한다.
-		JumpSectionForCombo();
-	}
-	else
-	{
-		// 새로 몽타주를 재생한다.
-		if (ActivateAbilitiesByWeaponType(PlayerMode, true))
+		if (TargetCharacter)
 		{
-			if (PlayerMode == EWeaponType::Idle)
+			const float TargetDistance = GetDistanceTo(TargetCharacter);
+			if (!TargetCharacter->IsAlive() || TargetDistance > 1300.f)
 			{
-				SetAnimLayer(EWeaponType::Boxer);
+				ReleaseCamera();
 			}
+			else
+			{
+				const FVector TargetLoc = TargetCharacter->GetActorLocation();
+				const FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(
+					GetActorLocation(), FVector(TargetLoc.X, TargetLoc.Y, TargetLoc.Z - 100.f));
+
+				FRotator Rotator = UKismetMathLibrary::RInterpTo(GetActorRotation(), TargetRot,
+				                                                 GetWorld()->GetDeltaSeconds(), 5.f);
+				GetController()->SetControlRotation(UKismetMathLibrary::MakeRotator(
+					GetActorRotation().Roll, Rotator.Pitch,
+					Rotator.Yaw));
+			}
+		}
+		else
+		{
+			ReleaseCamera();
 		}
 	}
 }
 
+void ABalian::LockCamera()
+{
+	if (TargetCharacter)
+	{
+		if (const AEnemyBase* Enemy = Cast<AEnemyBase>(TargetCharacter))
+		{
+			bIsTargeting = true;
+			Enemy->HighlightBorder();
+			if (PlayerMode == EWeaponType::Idle)
+			{
+				SetAnimLayer(EWeaponType::Boxer);
+			}
+			GetCharacterMovement()->bUseControllerDesiredRotation = true;
+			GetCharacterMovement()->bOrientRotationToMovement = false;
+		}
+	}
+}
+
+void ABalian::ReleaseCamera()
+{
+	bIsTargeting = false;
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+
+	if (const AEnemyBase* Enemy = Cast<AEnemyBase>(TargetCharacter))
+	{
+		Enemy->UnHighlightBorder();
+	}
+	TargetCharacter = nullptr;
+}
+
 void ABalian::SpaceBarClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Jump"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"점프 시작"));
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Jump"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
@@ -358,34 +475,43 @@ void ABalian::SpaceBarClick()
 
 void ABalian::LMBClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LMBCLICKED"));
-	// FGameplayTagContainer Container;
-	// Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.LightAttack"));
-	// AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LMB 클릭"));
 	DoMeleeAttack();
 }
 
 void ABalian::RMBClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("RMBCLICKED"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"RMB 클릭"));
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Block"));
-	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
-	// AbilitySystemComponent->ApplyGameplayEffectToSelf(HUDMode.GetDefaultObject(), 1,
-	//                                                   AbilitySystemComponent->MakeEffectContext());
+	if (AbilitySystemComponent->TryActivateAbilitiesByTag(Container))
+	{
+		if (PlayerMode == EWeaponType::Idle)
+		{
+			SetAnimLayer(EWeaponType::Boxer);
+		}
+	}
 }
 
 void ABalian::RMBCompleted()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("RMBReleased"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"RMB 해제"));
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("State.Blocking"));
 	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(Container);
 }
 
+void ABalian::MMBClick()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"마우스 중간 클릭"));
+	FGameplayTagContainer Container;
+	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.FindTarget"));
+	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+}
+
 void ABalian::Dodge()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt Clicked"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LAlt 클릭"));
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
 		FVector::ZeroVector,
@@ -397,7 +523,7 @@ void ABalian::Dodge()
 
 void ABalian::Roll()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt Double Clicked"));
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt 더블 클릭"));
 
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
@@ -406,6 +532,16 @@ void ABalian::Roll()
 	);
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Roll"));
+	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+}
+
+void ABalian::Ability1()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Ability 1 시도"));
+
+
+	FGameplayTagContainer Container;
+	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Skill.FireBurst"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
@@ -427,7 +563,7 @@ void ABalian::PerformInteractionCheck()
 	// 플레이어 방향과 바라보는 방향이 90도 이하일 때만 Trace를 할 것.
 	if (LookDirection > 0)
 	{
-		DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Orange, false, 1.f, 0, 1.f);
+		// DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Orange, false, 1.f, 0, 1.f);
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
@@ -548,5 +684,6 @@ void ABalian::UpdateHealthBar() const
 {
 	HUD->SetHP(GetHealth() / GetMaxHealth());
 }
+
 
 #pragma endregion Interact

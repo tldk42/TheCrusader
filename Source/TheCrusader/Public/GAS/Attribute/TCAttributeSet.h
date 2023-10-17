@@ -21,6 +21,8 @@ class THECRUSADER_API UTCAttributeSet : public UAttributeSet
 	GENERATED_BODY()
 
 public:
+	UTCAttributeSet();
+	
 	// Current Health, when 0 we expect owner to die unless prevented by an ability. Capped by MaxHealth.
 	// Positive changes can directly use this.
 	// Negative changes to Health should go through Damage meta attribute.
@@ -39,7 +41,7 @@ public:
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, HealthRegenRate)
 
 	// Current stamina, used to execute special abilities. Capped by MaxStamina.
-UPROPERTY(BlueprintReadOnly, Category = "Stamina", ReplicatedUsing = OnRep_Stamina)
+	UPROPERTY(BlueprintReadOnly, Category = "Stamina", ReplicatedUsing = OnRep_Stamina)
 	FGameplayAttributeData Stamina;
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, Stamina)
 
@@ -53,12 +55,31 @@ UPROPERTY(BlueprintReadOnly, Category = "Stamina", ReplicatedUsing = OnRep_Stami
 	FGameplayAttributeData StaminaRegenRate;
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, StaminaRegenRate)
 
+	/** AttackPower of the attacker is multiplied by the base Damage to reduce health, so 1.0 means no bonus */
+	UPROPERTY(BlueprintReadOnly, Category = "Damage", ReplicatedUsing = OnRep_AttackPower)
+	FGameplayAttributeData AttackPower;
+	ATTRIBUTE_ACCESSORS(UTCAttributeSet, AttackPower)
+
+	/** Base Damage is divided by DefensePower to get actual damage done, so 1.0 means no bonus */
+	UPROPERTY(BlueprintReadOnly, Category = "Damage", ReplicatedUsing = OnRep_DefensePower)
+	FGameplayAttributeData DefensePower;
+	ATTRIBUTE_ACCESSORS(UTCAttributeSet, DefensePower)
+
+	/** Damage is a 'temporary' attribute used by the DamageExecution to calculate final damage, which then turns into -Health */
+	UPROPERTY(BlueprintReadOnly, Category = "Damage")
+	FGameplayAttributeData Damage;
+	ATTRIBUTE_ACCESSORS(UTCAttributeSet, Damage)
+
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
+	/** 인스턴스 GameplayEffect로부터 Attribute의 베이스값이 변경된 이후에만 발동
+	 * GameplayEffect에서 Attribute가 변경될 때 더 많은 조작을 하기에 적합 **/
 	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 protected:
-	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute, float NewMaxValue, const FGameplayAttribute& AffectedAttributeProperty);
+	void AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute,
+	                                 const FGameplayAttributeData& MaxAttribute, float NewMaxValue,
+	                                 const FGameplayAttribute& AffectedAttributeProperty);
 
 	UFUNCTION()
 	virtual void OnRep_Health(const FGameplayAttributeData& OldHealth);
@@ -77,4 +98,16 @@ protected:
 
 	UFUNCTION()
 	virtual void OnRep_StaminaRegenRate(const FGameplayAttributeData& OldStaminaRegenRate);
+
+	UFUNCTION()
+	virtual void OnRep_AttackPower(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	virtual void OnRep_DefensePower(const FGameplayAttributeData& OldValue);
+
+private:
+	FGameplayTag HitDirectionFrontTag;
+	FGameplayTag HitDirectionBackTag;
+	FGameplayTag HitDirectionRightTag;
+	FGameplayTag HitDirectionLeftTag;
 };

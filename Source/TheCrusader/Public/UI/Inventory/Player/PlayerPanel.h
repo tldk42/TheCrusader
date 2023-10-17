@@ -6,6 +6,9 @@
 #include "Blueprint/UserWidget.h"
 #include "PlayerPanel.generated.h"
 
+class UItemBase;
+enum class EEquipmentPart : uint8;
+class UInventoryComponent;
 class UPlayerItemSlot;
 /**
  * 
@@ -15,6 +18,15 @@ class THECRUSADER_API UPlayerPanel : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	void RefreshInventory(EEquipmentPart Part, UItemBase* ItemRef) const;
+	
+public:
+
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UPlayerItemSlot> InventorySlotClass;
+	
 protected:
 	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
 	UPlayerItemSlot* HeadSlot;
@@ -28,6 +40,8 @@ protected:
 	UPlayerItemSlot* FeetSlot;
 	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
 	UPlayerItemSlot* WeaponSlot;
+	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
+	UPlayerItemSlot* ShieldSlot;
 	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
 	UPlayerItemSlot* BowSlot;
 	

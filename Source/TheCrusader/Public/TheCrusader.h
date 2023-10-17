@@ -15,3 +15,71 @@ enum class EWeaponType : uint8
 	Hammer,
 	Bow
 };
+
+/**
+ * Character gait state. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCGait : uint8
+{
+	Walking,
+	Running,
+	Sprinting
+};
+
+/**
+ * Character rotation mode. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCRotationMode : uint8
+{
+	VelocityDirection,
+	LookingDirection,
+	Aiming
+};
+
+/**
+ * Character view mode. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCViewMode : uint8
+{
+	ThirdPerson,
+	FirstPerson
+};
+
+/**
+ * Character stance. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCStance : uint8
+{
+	Standing,
+	Crouching
+};
+
+/**
+ * Character movement action state. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCMovementAction : uint8
+{
+	None,
+	LowMantle,
+	HighMantle,
+	Rolling,
+	GettingUp
+};
+
+/**
+ * Character movement state. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
+ */
+UENUM(BlueprintType)
+enum class ETCMovementState : uint8
+{
+	None,
+	Grounded,
+	InAir,
+	Mantling,
+	Ragdoll
+};

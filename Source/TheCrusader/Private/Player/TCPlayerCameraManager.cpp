@@ -524,15 +524,15 @@ int32 ATCPlayerCameraManager::FindOrCreateCameraModeInstance(TSubclassOf<UTCCame
 	return NewIdx;
 }
 
-int32 ATCPlayerCameraManager::GetBestCameraMode(AActor* ViewTarget)
+int32 ATCPlayerCameraManager::GetBestCameraMode(AActor* InViewTarget)
 {
-	TSubclassOf<UTCCameraMode> CameraModeClass = DetermineBestCameraClass(ViewTarget);
+	TSubclassOf<UTCCameraMode> CameraModeClass = DetermineBestCameraClass(InViewTarget);
 	if (!CameraModeClass)
 	{
 		CameraModeClass = UTCCameraMode::StaticClass();
 	}
 
-	return FindOrCreateCameraModeInstance(CameraModeClass, ViewTarget);
+	return FindOrCreateCameraModeInstance(CameraModeClass, InViewTarget);
 }
 
 void ATCPlayerCameraManager::SetDebugCameraStyle(const ECameraStyle NewDebugCameraStyle)
@@ -586,7 +586,7 @@ float ATCPlayerCameraManager::GetModeTransitionTime(const UTCCameraMode* ToMode)
 	return 0.f;
 }
 
-TSubclassOf<UTCCameraMode> ATCPlayerCameraManager::DetermineBestCameraClass(AActor const* ViewTarget) const
+TSubclassOf<UTCCameraMode> ATCPlayerCameraManager::DetermineBestCameraClass(AActor const* InViewTarget) const
 {
 	if (bUsingAltCameraMode && HasAlternateCameraAvailable())
 	{
@@ -595,7 +595,7 @@ TSubclassOf<UTCCameraMode> ATCPlayerCameraManager::DetermineBestCameraClass(AAct
 
 	TSubclassOf<UTCCameraMode> BestCameraType = UTCCameraMode::StaticClass();
 
-	TSubclassOf<UTCCameraMode> CameraClass = GetCameraClassForCharacter(ViewTarget);
+	TSubclassOf<UTCCameraMode> CameraClass = GetCameraClassForCharacter(InViewTarget);
 	if (CameraClass)
 	{
 		BestCameraType = CameraClass;

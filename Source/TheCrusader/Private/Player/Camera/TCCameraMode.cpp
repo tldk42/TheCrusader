@@ -8,8 +8,8 @@
 
 UTCCameraMode::UTCCameraMode()
 	: PlayerCameraManager(nullptr),
-	  FOV(75.f),
 	  TransitionInTime(0.5f),
+	  FOV(75.f),
 	  bUseCineCam(false),
 	  bUseCineCamSettings(false),
 	  bIsActive(false),

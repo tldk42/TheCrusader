@@ -4,20 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "Item/ItemPickup.h"
-#include "Item/Data/ItemWeaponBase.h"
-#include "MyItem.generated.h"
+#include "Item/Data/ItemEquipmentBase.h"
+#include "Item_Equipment.generated.h"
 
 UCLASS()
-class THECRUSADER_API AMyItem : public AItemPickup
+class THECRUSADER_API AItem_Equipment : public AItemPickup
 {
 	GENERATED_BODY()
 
 public:
-	AMyItem();
+	AItem_Equipment();
 
-	FORCEINLINE virtual UItemWeaponBase* GetItemData() const override
+	FORCEINLINE virtual UItemEquipmentBase* GetItemData() const override
 	{
-		return Cast<UItemWeaponBase>(ItemRef);
+		return Cast<UItemEquipmentBase>(ItemRef);
 	}
 
 	virtual void InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity) override;
@@ -27,4 +27,5 @@ protected:
 
 public:
 	bool bEquipped;
+	
 };

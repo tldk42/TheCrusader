@@ -2,8 +2,18 @@
 
 
 #include "GAS/Attribute/TCAttributeSet.h"
-
+#include "GameplayEffect.h"
+#include "GameplayEffectExtension.h"
+#include "Character/TCGASCharacter.h"
 #include "Net/UnrealNetwork.h"
+
+UTCAttributeSet::UTCAttributeSet()
+{
+	HitDirectionFrontTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Front"));
+	HitDirectionBackTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Back"));
+	HitDirectionRightTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Right"));
+	HitDirectionLeftTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Left"));
+}
 
 void UTCAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
 {
@@ -24,6 +34,138 @@ void UTCAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribute, fl
 void UTCAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data)
 {
 	Super::PostGameplayEffectExecute(Data);
+
+	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
+	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
+	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
+
+	float DeltaValue = 0;
+	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Additive)
+	{
+		DeltaValue = Data.EvaluatedData.Magnitude;
+	}
+
+	AActor* TargetActor = nullptr;
+	AController* TargetController = nullptr;
+	ATCGASCharacter* TargetCharacter = nullptr;
+
+	if (Data.Target.AbilityActorInfo.IsValid() && Data.Target.AbilityActorInfo->AvatarActor.IsValid())
+	{
+		TargetActor = Data.Target.AbilityActorInfo->AvatarActor.Get();
+		TargetController = Data.Target.AbilityActorInfo->PlayerController.Get();
+		TargetCharacter = Cast<ATCGASCharacter>(TargetActor);
+	}
+
+	// Damage Effect
+	if (Data.EvaluatedData.Attribute == GetDamageAttribute())
+	{
+		AActor* SourceActor = nullptr;
+		AController* SourceController = nullptr;
+		ATCGASCharacter* SourceCharacter = nullptr;
+
+		if (Source && Source->AbilityActorInfo.IsValid() && Source->AbilityActorInfo->AvatarActor.IsValid())
+		{
+			SourceActor = Source->AbilityActorInfo->AvatarActor.Get();
+			SourceController = Source->AbilityActorInfo->PlayerController.Get();
+			if (SourceController != nullptr && SourceActor != nullptr)
+			{
+				if (APawn* Pawn = Cast<APawn>(SourceActor))
+				{
+					SourceController = Pawn->GetController();
+				}
+			}
+
+			if (SourceController)
+			{
+				SourceCharacter = Cast<ATCGASCharacter>(SourceController->GetPawn());
+			}
+			else
+			{
+				SourceCharacter = Cast<ATCGASCharacter>(SourceActor);
+			}
+
+			if (Context.GetEffectCauser())
+			{
+				SourceActor = Context.GetEffectCauser();
+			}
+		}
+
+		FHitResult HitResult;
+		if (Context.GetHitResult())
+		{
+			HitResult = *Context.GetHitResult();
+		}
+
+		const float LocalDamageDone = GetDamage();
+		SetDamage(.0f);
+
+		if (LocalDamageDone > 0)
+		{
+			bool WasAlive = true;
+
+			if (TargetCharacter)
+			{
+				WasAlive = TargetCharacter->IsAlive();
+			}
+
+			if (!TargetCharacter->IsAlive())
+			{
+				// Logging....
+			}
+
+			const float OldHealth = GetHealth();
+			SetHealth(FMath::Clamp(OldHealth - LocalDamageDone, 0.f, GetMaxHealth()));
+
+			if (TargetCharacter && WasAlive)
+			{
+				const FHitResult* Hit = Data.EffectSpec.GetContext().GetHitResult();
+
+				if (Hit)
+				{
+					ETCHitReactDirection HitDirection = TargetCharacter->GetHitReactDirection(
+						Data.EffectSpec.GetContext().GetHitResult()->Location);
+					switch (HitDirection)
+					{
+					case ETCHitReactDirection::None:
+					default:
+						TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+						break;
+					case ETCHitReactDirection::Left:
+						TargetCharacter->PlayHitReact(HitDirectionLeftTag, SourceCharacter);
+						break;
+					case ETCHitReactDirection::Front:
+						TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+						break;
+					case ETCHitReactDirection::Right:
+						TargetCharacter->PlayHitReact(HitDirectionRightTag, SourceCharacter);
+						break;
+					case ETCHitReactDirection::Back:
+						TargetCharacter->PlayHitReact(HitDirectionBackTag, SourceCharacter);
+						break;
+					}
+				}
+				else
+				{
+					TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+				}
+
+				TargetCharacter->HandleDamage(LocalDamageDone, HitResult, SourceTags, SourceCharacter, SourceActor);
+
+				TargetCharacter->HandleHealthChanged(-LocalDamageDone, SourceTags);
+			}
+		}
+	}
+
+	// Health Effect
+	else if (Data.EvaluatedData.Attribute == GetHealthAttribute())
+	{
+		SetHealth(FMath::Clamp(GetHealth(), 0.f, GetMaxHealth()));
+
+		if (TargetCharacter)
+		{
+			TargetCharacter->HandleHealthChanged(DeltaValue, SourceTags);
+		}
+	}
 }
 
 void UTCAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -48,9 +190,9 @@ void UTCAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& Affect
 	{
 		// Change current value to maintain the current Val / Max percent
 		const float CurrentValue = AffectedAttribute.GetCurrentValue();
-		float NewDelta = (CurrentMaxValue > 0.f)
-			                 ? (CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue
-			                 : NewMaxValue;
+		const float NewDelta = (CurrentMaxValue > 0.f)
+			                       ? (CurrentValue * NewMaxValue / CurrentMaxValue) - CurrentValue
+			                       : NewMaxValue;
 
 		AbilityComp->ApplyModToAttributeUnsafe(AffectedAttributeProperty, EGameplayModOp::Additive, NewDelta);
 	}
@@ -84,4 +226,14 @@ void UTCAttributeSet::OnRep_MaxStamina(const FGameplayAttributeData& OldMaxStami
 void UTCAttributeSet::OnRep_StaminaRegenRate(const FGameplayAttributeData& OldStaminaRegenRate)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UTCAttributeSet, StaminaRegenRate, OldStaminaRegenRate);
+}
+
+void UTCAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UTCAttributeSet, AttackPower, OldValue);
+}
+
+void UTCAttributeSet::OnRep_DefensePower(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UTCAttributeSet, DefensePower, OldValue);
 }

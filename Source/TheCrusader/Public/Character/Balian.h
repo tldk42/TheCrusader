@@ -8,14 +8,18 @@
 #include "TheCrusader.h"
 #include "Balian.generated.h"
 
+class UItemEquipmentBase;
+class UInputAction;
+class UInputMappingContext;
+class UTCPlayerCameraBehavior;
 class UPlayerItemSlot;
-enum class EEquipmentPart : uint8;
-class AMyItem;
+class AItem_Weapon;
 class AItemWeapon;
 class UInventoryComponent;
 class ATC_HUD;
 class UTCInputConfig;
 struct FInputActionValue;
+enum class EEquipmentPart : uint8;
 
 USTRUCT()
 struct FInteractionData
@@ -45,6 +49,9 @@ public:
 
 	void UpdateInteractionWidget() const;
 	virtual void UpdateHealthBar() const override;
+
+	void FocusCameraToTarget();
+	
 	void EquipToHand() const;
 	void AttachToPelvis() const;
 
@@ -52,9 +59,10 @@ public:
 
 	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); }
 
-	FORCEINLINE UInventoryComponent* GetInventory() const { return PlayerInventory; }
+	FORCEINLINE UInventoryComponent* GetInventory() const { return InventoryComponent; }
 
-	FORCEINLINE AMyItem* GetCurrentWeapon() const { return CurrentWeapon; }
+	FORCEINLINE AItem_Weapon* GetCurrentWeapon() const { return CurrentWeapon; }
+
 
 	UFUNCTION(BlueprintPure)
 	bool GetIsSprinting() const
@@ -90,7 +98,10 @@ public:
 
 	bool SetAnimLayer(EWeaponType Mode);
 
-	void SetCurrentWeapon(AMyItem* Weapon);
+	void SetCurrentWeapon(AItem_Weapon* Weapon);
+
+	void AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip);
+	void DettachEquipment(EEquipmentPart EquipmentPart);
 
 #pragma endregion SETTER
 
@@ -106,15 +117,16 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
 
-	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
-	                       ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser) override;
-	virtual void OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags) override;
-
 #pragma region Ability Function
 
-	bool ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation);
+	virtual bool ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation) override;
 
-	void DoMeleeAttack();
+
+	UFUNCTION(BlueprintCallable)
+	void LockCamera();
+
+	UFUNCTION(BlueprintCallable)
+	void ReleaseCamera();
 
 #pragma endregion Ability Function
 
@@ -126,8 +138,10 @@ protected:
 	void LMBClick();
 	void RMBClick();
 	void RMBCompleted();
+	void MMBClick();
 	void Dodge();
 	void Roll();
+	void Ability1();
 #pragma endregion InputBinding
 
 #pragma region Interact
@@ -137,23 +151,26 @@ protected:
 	void BeginInteract();
 	void EndInteract();
 	void Interact();
-#pragma endregion Interac
+#pragma endregion Interact
 
 protected:
 	UPROPERTY()
 	ATC_HUD* HUD;
 
-	UPROPERTY(VisibleAnywhere, Category = "Character | Inventory")
-	UInventoryComponent* PlayerInventory;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Character | Inventory", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	TMap<EEquipmentPart, UPlayerItemSlot*> ItemSlot;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
 	class UMotionWarpingComponent* MotionWarpingComponent;
 
+#pragma region Inventory & Interaction Properties
+
 	UPROPERTY(VisibleAnywhere, Category = "Character | Interaction")
 	TScriptInterface<IInteractable> TargetInteractable;
+
+	UPROPERTY(VisibleAnywhere, Category = "Character | Inventory")
+	UInventoryComponent* InventoryComponent;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Inventory", BlueprintReadOnly,
+		meta = (AllowPrivateAccess = true))
+	TMap<EEquipmentPart, UPlayerItemSlot*> ItemSlot;
 
 	float InteractionCheckFrequency;
 
@@ -163,12 +180,12 @@ protected:
 
 	FInteractionData InteractionData;
 
-private:
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	EWeaponType PlayerMode;
+#pragma endregion Inventory & Interaction Properties
 
-	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	AMyItem* CurrentWeapon;
+private:
+
+	UPROPERTY(EditDefaultsOnly, Category = "Armour")	
+	UStaticMeshComponent* ShieldMesh;
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TMap<EWeaponType, TSubclassOf<UAnimInstance>> AnimLayers;
@@ -176,24 +193,27 @@ private:
 	TMap<EWeaponType, UAnimMontage*> EquipMontages;
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TMap<EWeaponType, UAnimMontage*> AttachMontages;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 	UTCInputConfig* InputConfig;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputMappingContext* GASMappingContext;
+	UInputMappingContext* GASMappingContext;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputMappingContext* DefaultMappingContext;
+	UInputMappingContext* DefaultMappingContext;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* JumpAction;
+	UInputAction* JumpAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* MoveAction;
+	UInputAction* MoveAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	class UInputAction* LookAction;
+	UInputAction* LookAction;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	bool bIsTargeting = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, BlueprintSetter=SetIsSprinting, Meta=(AllowPrivateAccess="true"))
 	bool bIsSprinting = false;

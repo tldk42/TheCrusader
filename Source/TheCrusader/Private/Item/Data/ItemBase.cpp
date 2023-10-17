@@ -4,6 +4,9 @@
 #include "Item/Data/ItemBase.h"
 
 #include "Component/Inventory/InventoryComponent.h"
+#include "Data/ItemDataStructs.h"
+#include "Item/Weapon/Item_Weapon.h"
+#include "Kismet/KismetMathLibrary.h"
 
 UItemBase::UItemBase()
 	: bIsCopy(false),
@@ -51,5 +54,34 @@ void UItemBase::SetQuantity(const int32 NewQuantity)
 }
 
 void UItemBase::Use(ABalian* Character)
+{
+}
+
+AItemPickup* UItemBase::Drop(const int32 NumToRemove)
+{
+	if (OwningInventory && OwningInventory->FindMatchingItem(this))
+	{
+		const AActor* Actor = OwningInventory->GetOwner();
+		const FVector Start =
+			Actor->GetActorLocation() +
+			UKismetMathLibrary::RandomUnitVectorInConeInDegrees(
+				Actor->GetActorForwardVector(), 30.f) * 150.f;
+		const FVector End = Start - FVector(0, 0, 500.f);
+
+		if (FHitResult HitResult; GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
+		{
+			const int32 RemovedQuantity = OwningInventory->RemoveAmountOfItem(this, NumToRemove);
+
+			AItemPickup* PickupItem = GetWorld()->SpawnActor<AItemPickup>(
+				AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
+			PickupItem->InitializeDrop(this, RemovedQuantity);
+			return PickupItem;
+		}
+		UE_LOG(LogTemp, Error, TEXT("Can not remove item from inventory"));
+	}
+	return nullptr;
+}
+
+void UItemBase::UnEquip(ABalian* Character)
 {
 }

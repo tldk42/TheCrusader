@@ -17,7 +17,7 @@ class THECRUSADER_API UInventoryPanel : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	void RefreshInventory();
+	virtual void RefreshInventory();
 
 protected:
 	virtual bool NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent, UDragDropOperation* InOperation) override;

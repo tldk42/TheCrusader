@@ -31,6 +31,7 @@ public:
 	virtual void InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity);
 
 	FORCEINLINE virtual UItemBase* GetItemData() const { return ItemRef; }
+	FORCEINLINE UStaticMeshComponent* GetMesh() const { return PickupMesh; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -58,7 +59,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Pickup | Interaction")
 	FInteractableData InstanceInteractableData;
-	
+
 	UPROPERTY(VisibleAnywhere)
 	UItemBase* ItemRef;
 };

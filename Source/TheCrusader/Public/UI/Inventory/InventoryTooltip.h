@@ -16,6 +16,9 @@ class THECRUSADER_API UInventoryTooltip : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	void UpdateToolTip();
+	
 protected:
 	virtual void NativeConstruct() override;
 	

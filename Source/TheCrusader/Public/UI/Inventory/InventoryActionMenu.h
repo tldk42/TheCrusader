@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "InventoryActionMenu.generated.h"
 
+class UTextBlock;
 class UInventoryItemSlot;
 class UVerticalBox;
 class UButton;
@@ -22,15 +23,13 @@ protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeOnMouseLeave(const FPointerEvent& InMouseEvent) override;
 
-private:
-	void SpawnItem(int32 Quantity) const;
-	
+protected:
 	UFUNCTION()
-	void Use();
+	virtual void Use();
 	UFUNCTION()
-	void Drop();
+	virtual void Drop();
 	UFUNCTION()
-	void DropAll();
+	virtual void DropAll();
 
 public:
 	UPROPERTY(meta = (BindWidget))
@@ -42,7 +41,9 @@ public:
 	UPROPERTY(meta = (BindWidget))
 	UButton* BtnDropAll;
 
-
 	UPROPERTY()
 	UInventoryItemSlot* SourceSlot;
+
+protected:
+	
 };

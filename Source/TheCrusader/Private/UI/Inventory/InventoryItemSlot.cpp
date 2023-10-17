@@ -14,7 +14,7 @@
 void UInventoryItemSlot::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
-	if (ToolTipClass && ItemReference)
+	if (ToolTipClass)
 	{
 		UInventoryTooltip* Tooltip = CreateWidget<UInventoryTooltip>(this, ToolTipClass);
 		Tooltip->InventorySlotBeingHovered = this;

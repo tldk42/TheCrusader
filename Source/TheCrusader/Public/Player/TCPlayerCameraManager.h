@@ -83,7 +83,7 @@ public:
 	UTCCameraMode* GetCurrentCameraMode();
 
 	UFUNCTION(BlueprintCallable)
-	int32 GetBestCameraMode(AActor* ViewTarget);
+	int32 GetBestCameraMode(AActor* InViewTarget);
 
 	FMinimalViewInfo GetTransitionGoalPOV() const
 	{
@@ -144,7 +144,7 @@ protected:
 	ATCPlayerController* GetOwningTCPC() const;
 
 private:
-	TSubclassOf<UTCCameraMode> DetermineBestCameraClass(AActor const* ViewTarget) const;
+	TSubclassOf<UTCCameraMode> DetermineBestCameraClass(AActor const* InViewTarget) const;
 
 	int32 FindOrCreateCameraModeInstance(TSubclassOf<UTCCameraMode> CameraModeClass, AActor* InViewTarget);
 

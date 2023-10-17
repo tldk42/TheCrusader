@@ -87,7 +87,6 @@ FVector UTCMovementComponent::ConstrainInputAcceleration(const FVector& InputAcc
 {
 	FVector Result = InputAcceleration;
 	const float InputAccelerationSize = InputAcceleration.Size();
-	UE_LOG(LogTemp, Warning, TEXT("%f"), InputAccelerationSize);
 	if (InputAccelerationSize > SMALL_NUMBER)
 	{
 		const float ScaledInputAccelerationSize = FMath::Lerp(MinInputAccelerationSize, 1.f, InputAccelerationSize);

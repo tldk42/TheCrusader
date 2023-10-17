@@ -16,7 +16,9 @@ class THECRUSADER_API UItemWeaponBase : public UItemBase
 
 protected:
 	virtual UItemBase* CreateItemCopy() const override;
+	virtual AItemPickup* Drop(int32 NumToRemove) override;
 	virtual void Use(ABalian* Character) override;
+	virtual void UnEquip(ABalian* Character) override;
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")

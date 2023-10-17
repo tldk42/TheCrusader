@@ -15,8 +15,7 @@ class UGameplayTagsManager;
 class THECRUSADER_API FTCGameplayTags
 {
 public:
-
-	static const FTCGameplayTags& Get() {return GameplayTags;}
+	static const FTCGameplayTags& Get() { return GameplayTags; }
 
 	static void InitializeNativeTags();
 
@@ -26,6 +25,9 @@ public:
 	FGameplayTag InputTag_E;
 	FGameplayTag InputTag_Dodge;
 	FGameplayTag InputTag_Roll;
+	FGameplayTag InputTag_MouseMiddle;
+	FGameplayTag InputTag_MouseWheel;
+	FGameplayTag InputTag_Numpad1;
 
 protected:
 	void AddAllTags(UGameplayTagsManager& Manager);
@@ -33,6 +35,5 @@ protected:
 	void AddTag(FGameplayTag& OutTag, const ANSICHAR* TagName, const ANSICHAR* TagComment);
 
 private:
-
 	static FTCGameplayTags GameplayTags;
 };

@@ -8,16 +8,13 @@
 #include "Item/Data/ItemBase.h"
 #include "UI/Inventory/InventoryItemSlot.h"
 
-void UInventoryTooltip::NativeConstruct()
+void UInventoryTooltip::UpdateToolTip()
 {
-	Super::NativeConstruct();
-
 	if (InventorySlotBeingHovered)
 	{
 		const UItemBase* ItemBeingHovered = InventorySlotBeingHovered->GetItemReference();
 		if (ItemBeingHovered)
 		{
-
 			switch (ItemBeingHovered->ItemType)
 			{
 			case EItemType::Armor:
@@ -34,7 +31,7 @@ void UInventoryTooltip::NativeConstruct()
 				ItemType->SetText(FText::FromString("Consume"));
 				DamageValue->SetVisibility(ESlateVisibility::Collapsed);
 				ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
-				// SellValue->SetVisibility(ESlateVisibility::Collapsed);
+			// SellValue->SetVisibility(ESlateVisibility::Collapsed);
 				break;
 			case EItemType::Quest:
 				break;
@@ -43,7 +40,7 @@ void UInventoryTooltip::NativeConstruct()
 				DamageValue->SetVisibility(ESlateVisibility::Collapsed);
 				ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
 				UsageText->SetVisibility(ESlateVisibility::Collapsed);
-				// SellValue->SetVisibility(ESlateVisibility::Collapsed);
+			// SellValue->SetVisibility(ESlateVisibility::Collapsed);
 				break;
 			default: ;
 			}
@@ -64,6 +61,12 @@ void UInventoryTooltip::NativeConstruct()
 				MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
 			}
 		}
-		
 	}
+}
+
+void UInventoryTooltip::NativeConstruct()
+{
+	Super::NativeConstruct();
+
+	UpdateToolTip();
 }

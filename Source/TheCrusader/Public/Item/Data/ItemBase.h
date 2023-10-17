@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "ItemBase.generated.h"
 
+class AItemPickup;
 class UInventoryComponent;
 class ABalian;
 /**
@@ -39,6 +40,11 @@ public:
 
 	UFUNCTION(Category = "Item")
 	virtual void Use(ABalian* Character);
+
+	UFUNCTION(Category = "Item")
+	virtual AItemPickup* Drop(int32 NumToRemove);
+
+	virtual void UnEquip(ABalian* Character);
 
 protected:
 	bool operator==(const FName& OtherID) const

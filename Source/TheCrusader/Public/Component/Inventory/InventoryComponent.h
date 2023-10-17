@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "InventoryComponent.generated.h"
 
+enum class EEquipmentPart : uint8;
 class UItemBase;
 /** 인벤토리에 아이템을 넣었을 때 아이템 전송 결과 */
 UENUM(BlueprintType)
@@ -81,6 +82,11 @@ public:
 public:
 	UFUNCTION(Category = "Inventory")
 	FItemAddResult HandleAddItem(UItemBase* InputItem);
+	UFUNCTION(Category = "Inventory")
+	void HandleEquipmentItem(UItemBase* ItemToAdd);
+
+	void AttachEquipmentItem(EEquipmentPart Part);
+	void DettachEquipmentItem(EEquipmentPart Part);
 
 	UFUNCTION(Category = "Inventory")
 	UItemBase* FindMatchingItem(UItemBase* ItemIn) const;
@@ -88,6 +94,7 @@ public:
 	UItemBase* FindNextItemByID(UItemBase* ItemIn) const;
 	UFUNCTION(Category = "Inventory")
 	UItemBase* FindNextPartialStack(UItemBase* ItemIn) const;
+	UItemBase* FindMatchingEquipmentSlot(EEquipmentPart Part) const;
 
 	UFUNCTION(Category = "Inventory")
 	void RemoveSingleInstanceOfItem(UItemBase* ItemToRemove);
@@ -95,6 +102,7 @@ public:
 	int32 RemoveAmountOfItem(UItemBase* ItemToRemove, int32 DesiredAmountToRemove);
 	UFUNCTION(Category = "Inventory")
 	void SplitExistingStack(UItemBase* ItemIn, const int32 AmountToSplit);
+	void RemoveEquipmentItem(EEquipmentPart Part);
 
 #pragma region GETTER
 
@@ -106,6 +114,11 @@ public:
 
 	UFUNCTION(Category = "Inventory")
 	FORCEINLINE int32 GetSlotCapacity() const { return InventorySlotCapacity; }
+
+	FORCEINLINE TMap<EEquipmentPart, TObjectPtr<UItemBase>> GetEquippedContents() const
+	{
+		return EquippedContents;
+	}
 
 	// UFUNCTION 지정자는 TObjectPtr를 처리할 수 없음
 	UFUNCTION(Category = "Inventory")
@@ -142,6 +155,10 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	float InventoryWeightCapacity;
 
+	UPROPERTY(VisibleAnywhere, Category = "Inventory")
+	TMap<EEquipmentPart, TObjectPtr<UItemBase>> EquippedContents;
+
+protected:
 	UPROPERTY(VisibleAnywhere, Category = "Inventory")
 	TArray<TObjectPtr<UItemBase>> InventoryContents;
 };

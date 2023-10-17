@@ -3,16 +3,42 @@
 
 #include "Character/TCGASCharacter.h"
 
-#include "Components/SphereComponent.h"
+#include <assert.h>
+#include <IVectorChangedEventArgs.h>
+
+#include "TheCrusader.h"
+#include "Component/Physics/TCPhysicalAnimComp.h"
+#include "Components/ArrowComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/DecalActor.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Ability/TCGameplayAbility.h"
 #include "GAS/Attribute/TCAttributeSet.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
 ATCGASCharacter::ATCGASCharacter()
 {
+	HitDirectionFrontTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Front"));
+	HitDirectionBackTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Back"));
+	HitDirectionRightTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Right"));
+	HitDirectionLeftTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Left"));
+	DeadTag = FGameplayTag::RequestGameplayTag(FName("State.Dead"));
+
+	ForwardArrow = CreateDefaultSubobject<UArrowComponent>("ForwardArrow");
+	BackArrow = CreateDefaultSubobject<UArrowComponent>("BackArrow");
+	LeftArrow = CreateDefaultSubobject<UArrowComponent>("LeftArrow");
+	RightArrow = CreateDefaultSubobject<UArrowComponent>("RightArrow");
+	ForwardArrow->SetupAttachment(GetCapsuleComponent());
+	BackArrow->SetupAttachment(GetCapsuleComponent());
+	LeftArrow->SetupAttachment(GetCapsuleComponent());
+	RightArrow->SetupAttachment(GetCapsuleComponent());
+
+	PhysicalAnimComp = CreateDefaultSubobject<UTCPhysicalAnimComp>("PhysicsAnimation");
+
 	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
 }
@@ -31,11 +57,21 @@ void ATCGASCharacter::JumpSectionForCombo()
 			const FName NextSectionName = JumpSectionNotify->JumpSections[UKismetMathLibrary::RandomInteger(
 				JumpSectionNotify->JumpSections.Num())];
 
-			AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
+			CurrentSectionName = NextSectionName;
+
+			// AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
+			// AnimInstance->Montage_JumpToSection(NextSectionName, CurrentMontage);
+
+			ActivateAbilitiesByWeaponType(PlayerMode, true);
 
 			bEnableComboPeriod = false;
 		}
 	}
+}
+
+bool ATCGASCharacter::IsAlive() const
+{
+	return GetHealth() > 0.f;
 }
 
 float ATCGASCharacter::GetHealth() const
@@ -78,6 +114,94 @@ float ATCGASCharacter::GetMaxStamina() const
 	return 0.0f;
 }
 
+ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint)
+{
+	const FVector& ActorLocation = GetActorLocation();
+
+	const float DistanceToFrontBackPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorRightVector());
+	const float DistanceToRightLeftPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorForwardVector());
+
+	if (FMath::Abs(DistanceToFrontBackPlane) <= FMath::Abs(DistanceToRightLeftPlane))
+	{
+		if (DistanceToRightLeftPlane >= 0)
+		{
+			return ETCHitReactDirection::Front;
+		}
+		return ETCHitReactDirection::Back;
+	}
+	if (DistanceToFrontBackPlane >= 0)
+	{
+		return ETCHitReactDirection::Right;
+	}
+	return ETCHitReactDirection::Left;
+}
+
+UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation)
+{
+	int8 Index = INT8_MAX;
+	float ClosetDistance = 300.f;
+	const float Forward = UKismetMathLibrary::Vector_Distance(HitLocation, ForwardArrow->GetComponentLocation());
+	const float Back = UKismetMathLibrary::Vector_Distance(HitLocation, BackArrow->GetComponentLocation());
+	const float Left = UKismetMathLibrary::Vector_Distance(HitLocation, LeftArrow->GetComponentLocation());
+	const float Right = UKismetMathLibrary::Vector_Distance(HitLocation, RightArrow->GetComponentLocation());
+	if (ClosetDistance > Forward)
+	{
+		ClosetDistance = Forward;
+		Index = 0;
+	}
+	if (ClosetDistance > Back)
+	{
+		ClosetDistance = Back;
+		Index = 1;
+	}
+	if (ClosetDistance > Left)
+	{
+		ClosetDistance = Left;
+		Index = 2;
+	}
+	if (ClosetDistance > Right)
+	{
+		Index = 3;
+	}
+
+	switch (Index)
+	{
+	case 0:
+		return ForwardArrow;
+	case 1:
+		return BackArrow;
+	case 2:
+		return LeftArrow;
+	case 3:
+		return RightArrow;
+	default:
+		return ForwardArrow;
+	}
+}
+
+void ATCGASCharacter::PlayHitReact(FGameplayTag HitDirection, AActor* DamageCauser)
+{
+	if (IsAlive())
+	{
+		if (HitDirection == HitDirectionLeftTag)
+		{
+			ShowHitReact.Broadcast(ETCHitReactDirection::Left);
+		}
+		else if (HitDirection == HitDirectionFrontTag)
+		{
+			ShowHitReact.Broadcast(ETCHitReactDirection::Front);
+		}
+		else if (HitDirection == HitDirectionRightTag)
+		{
+			ShowHitReact.Broadcast(ETCHitReactDirection::Right);
+		}
+		else if (HitDirection == HitDirectionBackTag)
+		{
+			ShowHitReact.Broadcast(ETCHitReactDirection::Back);
+		}
+	}
+}
+
 UAbilitySystemComponent* ATCGASCharacter::GetAbilitySystemComponent() const
 {
 	return AbilitySystemComponent;
@@ -114,6 +238,99 @@ void ATCGASCharacter::UpdateHealthBar() const
 {
 }
 
+void ATCGASCharacter::Die()
+{
+	RemoveCharacterAbilities();
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCharacterMovement()->GravityScale = 0.f;
+	GetCharacterMovement()->Velocity = FVector::Zero();
+
+	if (IsValid(AbilitySystemComponent))
+	{
+		AbilitySystemComponent->CancelAllAbilities();
+
+		FGameplayTagContainer EffectTagToRemove;
+		EffectTagToRemove.AddTag(EffectRemoveOnDeathTag);
+		int32 NumEffectsRemoved = AbilitySystemComponent->RemoveActiveEffectsWithTags(EffectTagToRemove);
+
+		AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
+	}
+
+	if (TargetCharacter && TargetCharacter->GetTargetingCharacter() == this)
+	{
+		TargetCharacter->SetTargetingCharacter(nullptr);
+	}
+
+
+	if (DeadMontage)
+	{
+		PlayAnimMontage(DeadMontage);
+		FTimerHandle TimerHandle;
+
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
+		{
+			Destroy();
+		}, 10.f, false);
+	}
+
+	// FinishDying();
+}
+
+void ATCGASCharacter::FinishDying()
+{
+	Destroy();
+}
+
+void ATCGASCharacter::DoMeleeAttack()
+{
+	// 일시정지인지 다른 스킬을 사용하고있는지 살아있는지 확인해야함
+	if (UGameplayStatics::IsGamePaused(GetWorld()))
+		return;
+
+	FGameplayTagContainer CheckThisTagContainer;
+	CheckThisTagContainer.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.LightAttack"));
+
+	TArray<UTCGameplayAbility*> GameplayAbilities;
+
+	AbilitySystemComponent->GetActiveAbilitiesWithTags(CheckThisTagContainer, GameplayAbilities);
+
+	// 이미 MeleeAttack을 진행중인가?
+	if (GameplayAbilities.Num() > 0)
+	{
+		// 콤보를 업데이트한다.
+		// JumpSectionForCombo();
+		bComboEnabled = true;
+	}
+	else
+	{
+		const FName StartSections[2] = {"Combo1", "Combo1-2"};
+
+		CurrentSectionName = StartSections[UKismetMathLibrary::RandomInteger(2)];
+		bComboEnabled = false;
+		// 새로 몽타주를 재생한다.
+		if (ActivateAbilitiesByWeaponType(PlayerMode, true))
+			if (ActivateAbilitiesByWeaponType(PlayerMode, true))
+			{
+				if (PlayerMode == EWeaponType::Idle)
+				{
+					// SetAnimLayer(EWeaponType::Boxer);
+				}
+			}
+	}
+}
+
+bool ATCGASCharacter::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
+{
+	const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
+
+	if (FoundHandle && AbilitySystemComponent)
+	{
+		return AbilitySystemComponent->TryActivateAbility(*FoundHandle, bAllowRemoteActivation);
+	}
+	return false;
+}
+
 void ATCGASCharacter::AddCharacterAbilities()
 {
 	// Grant abilities, but only on the server	
@@ -130,7 +347,7 @@ void ATCGASCharacter::AddCharacterAbilities()
 			                     1, this));
 	}
 
-	for (const auto& MeleeAbility : MeleeAbilities)
+	for (const auto& MeleeAbility : MeleeAbilityMap)
 	{
 		FGameplayAbilitySpecHandle Spec = AbilitySystemComponent->GiveAbility(
 			FGameplayAbilitySpec(
@@ -197,15 +414,28 @@ void ATCGASCharacter::AddStartupEffects()
 void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
                                 ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
 {
+	UE_LOG(LogTemp, Warning, TEXT("DAMAGED"));
+
+	SetActorRotation(
+		UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+
+	PhysicalAnimComp->HitReaction(HitInfo);
+	if (!TargetCharacter)
+	{
+		TargetCharacter = InstigatorCharacter;
+	}
 }
 
 void ATCGASCharacter::OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
 {
-	if (GetHealth() == 0.f)
+	UpdateHealthBar();
+
+	if (!IsAlive() && !AbilitySystemComponent->HasMatchingGameplayTag(DeadTag))
 	{
-		UE_LOG(LogTemp, Display, TEXT("DEAD"));
+		Die();
 	}
 }
+
 
 void ATCGASCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo,
                                    const FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,

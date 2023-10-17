@@ -7,7 +7,6 @@
 
 void UJumpSection::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration)
 {
-
 	ATCGASCharacter* Character = Cast<ATCGASCharacter>(MeshComp->GetOwner());
 	if (Character)
 	{
@@ -18,7 +17,6 @@ void UJumpSection::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBa
 
 void UJumpSection::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime)
 {
-
 	// if (IsValid(Animation))
 	// {
 	// 	ATCGASCharacter* Character = Cast<ATCGASCharacter>(MeshComp->GetOwner());
@@ -27,16 +25,20 @@ void UJumpSection::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBas
 	// 		Character->JumpSectionForCombo();
 	// 	}
 	// }
-	
 }
 
 void UJumpSection::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {
-
 	ATCGASCharacter* Character = Cast<ATCGASCharacter>(MeshComp->GetOwner());
 	if (Character)
 	{
+		if (Character->bComboEnabled)
+		{
+			Character->JumpSectionForCombo();
+		}
+
 		Character->SetComboPeriod(false);
 		Character->SetJumpSectionNotify(nullptr);
+		Character->bComboEnabled = false;
 	}
 }
