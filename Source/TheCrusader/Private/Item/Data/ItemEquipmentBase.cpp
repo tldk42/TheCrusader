@@ -64,17 +64,8 @@ void UItemEquipmentBase::Use(ABalian* Character)
 		{
 			Character->GetInventory()->HandleEquipmentItem(this);
 			Character->AttachEquipment(EquipmentPart, this);
-			OwningInventory->RemoveSingleInstanceOfItem(this);
+			OwningInventory->RemoveAmountOfItem(this, 1);
 		}
-
-
-		// if (AItem_Equipment* Equipment = Cast<AItem_Equipment>(Drop(1)))
-		// {
-		// 	Equipment->SetInstigator(Character);
-		// 	Equipment->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		// 	Equipment->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		// 	                             EquipmentData.AttachmentSocket);
-		// }
 	}
 }
 

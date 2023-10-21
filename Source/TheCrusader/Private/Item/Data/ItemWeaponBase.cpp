@@ -57,43 +57,20 @@ AItemPickup* UItemWeaponBase::Drop(int32 NumToRemove)
 
 void UItemWeaponBase::Use(ABalian* Character)
 {
-	// 플레이어에게 새로운 무기를 부착한다.
 	if (Character)
 	{
-		/** Check List
-		 * 1. 무기를 이미 장착중인가?
-		 * 2. 장착중이지 않은가?
-		 */
-
-		// 1. 인벤토리에서 무기 슬롯을 확인한다. (인벤토리에서 처리)
-
-		// Case 1 (장착중)
-		// 2. 장착하려는 무기 = NewWeapon
-		// 3. 기존 무기 = CurrentWeapon
-		// 4. CurrentWeapon(Actor)은 월드에 이미 생성되어 있을것이다.
-		// 5. Actor를 파괴하고 아이템의 정보(UItemWeaponBase)만을 다시 인벤토리에 저장해야한다.
-		// 6. CurrentWeapon의 ItemRef를 가져와서 변수로 저장한다.
-		// 7. CurrentWeapon을 파괴한다.
-		// 8. New Weapon을 무기 Slot에 넣는다. (인벤토리에서 처리)
-
 		if (Character->GetInventory())
 		{
 			Character->GetInventory()->HandleEquipmentItem(this);
 		}
 
-		// Case 2 (장착 X)
-		// Case1의 8 - 10 
-
-
-		// 캐릭터에 부착
-		// 9. New Weapon을 월드에 Spawn한다.
+	
 		if (AItem_Weapon* Weapon = Cast<AItem_Weapon>(Drop(1)))
 		{
 			Weapon->SetInstigator(Character);
 			Weapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			Weapon->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
 			                          WeaponData.AttachmentSocket);
-			// 10. New Weapon을 플레이어에게 부착및 장착(플레이어에서 처리)
 			Character->SetCurrentWeapon(Weapon);
 		}
 	}
