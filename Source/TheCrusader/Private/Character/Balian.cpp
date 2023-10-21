@@ -19,7 +19,8 @@
 #include "Player/TCPlayerState.h"
 #include "Player/Camera/TCPlayerCameraBehavior.h"
 #include "UI/TC_HUD.h"
-#include "UI/Inventory/Player/PlayerItemSlot.h"
+#include "UI/Radial/RadialButtonBase.h"
+#include "Character/Horse_Base.h"
 
 
 // Sets default values
@@ -44,11 +45,19 @@ ABalian::ABalian()
 	InventoryComponent->SetSlotsCapacity(20);
 	InventoryComponent->SetWeightCapacity(50.f);
 
-	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>("MotionWarpingComponent");
-
 	ShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>("Shield");
-	ShieldMesh->SetupAttachment(GetMesh(), TEXT("lowerarm_lSocket"));
+	ShieldMesh->SetupAttachment(GetMesh(), TEXT("shield_equip"));
 	ShieldMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SwordZip = CreateDefaultSubobject<UStaticMeshComponent>("SwordZip");
+	SwordZip->SetupAttachment(GetMesh(), TEXT("sword_equip"));
+	SwordZip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	LongswordZip = CreateDefaultSubobject<UStaticMeshComponent>("LongswordZip");
+	LongswordZip->SetupAttachment(GetMesh(), TEXT("longsword_equip"));
+	LongswordZip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	ShieldMesh->SetVisibility(false);
+	SwordZip->SetVisibility(false);
+	LongswordZip->SetVisibility(false);
 
 	BaseEyeHeight = 74.f;
 }
@@ -61,16 +70,6 @@ void ABalian::BeginPlay()
 	HUD = Cast<ATC_HUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
 
 	UpdateHealthBar();
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
-			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-			Subsystem->AddMappingContext(GASMappingContext, 1);
-		}
-	}
 }
 
 void ABalian::PossessedBy(AController* NewController)
@@ -95,6 +94,17 @@ void ABalian::PossessedBy(AController* NewController)
 		AddStartupEffects();
 
 		AddCharacterAbilities();
+
+
+		if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
+		{
+			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
+				UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+			{
+				Subsystem->AddMappingContext(DefaultMappingContext, 1);
+				Subsystem->AddMappingContext(GASMappingContext, 0);
+			}
+		}
 
 		// if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
 		// {
@@ -142,7 +152,8 @@ void ABalian::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	if (GetWorld()->TimeSince(InteractionData.LastInteractionCheckTime) > InteractionCheckFrequency)
+
+	if (!bRiding && GetWorld()->TimeSince(InteractionData.LastInteractionCheckTime) > InteractionCheckFrequency)
 	{
 		PerformInteractionCheck();
 	}
@@ -160,93 +171,24 @@ void ABalian::SetIsSprinting(bool bNewIsSprinting)
 	}
 }
 
-void ABalian::EquipToHand() const
-{
-	if (!CurrentWeapon->bEquipped)
-	{
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                                 CurrentWeapon->GetItemData()->WeaponData.EquipmentSocket);
-		CurrentWeapon->bEquipped = true;
-	}
-}
-
-void ABalian::AttachToPelvis() const
-{
-	if (CurrentWeapon)
-	{
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                                 CurrentWeapon->GetItemData()->WeaponData.AttachmentSocket);
-		CurrentWeapon->bEquipped = false;
-	}
-}
-
-bool ABalian::SetAnimLayer(EWeaponType Mode)
-{
-	if (Mode == EWeaponType::TwoHandSword && CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type ==
-		EWeaponType::OneHandSword)
-	{
-		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                              TEXT("lowerarm_lSocket"));
-	}
-	else
-	{
-		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                              TEXT("shield_equip"));
-	}
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-
-	switch (Mode)
-	{
-	case EWeaponType::Idle:
-		GetCharacterMovement()->bUseControllerDesiredRotation = false;
-		GetCharacterMovement()->bOrientRotationToMovement = false;
-		HUD->UpdateActiveRadialWidget(2);
-		PlayerMode = EWeaponType::Idle;
-		if (CurrentWeapon && CurrentWeapon->bEquipped)
-			PlayAnimMontage(AttachMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
-		return true;
-	case EWeaponType::Boxer:
-		HUD->UpdateActiveRadialWidget(1);
-		PlayerMode = EWeaponType::Boxer;
-		if (CurrentWeapon && CurrentWeapon->bEquipped)
-			PlayAnimMontage(AttachMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
-		break;
-	case EWeaponType::TwoHandSword:
-	case EWeaponType::OneHandSword:
-	case EWeaponType::Spear:
-	case EWeaponType::Hammer:
-		if (!CurrentWeapon)
-			return false;
-	// 소켓에 부착
-		HUD->UpdateActiveRadialWidget(0);
-		PlayerMode = CurrentWeapon->GetItemData()->WeaponData.Type;
-		PlayAnimMontage(EquipMontages[PlayerMode]);
-		break;
-	case EWeaponType::Bow:
-		break;
-	default: ;
-	}
-	if (AnimLayers.Contains(PlayerMode))
-	{
-		GetMesh()->LinkAnimClassLayers(AnimLayers[PlayerMode]);
-		return true;
-	}
-	return false;
-}
-
 void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 {
 	if (CurrentWeapon)
 	{
-		// Pickup 시도 (인벤토리에 넣음)
-		CurrentWeapon->Interact(this);
-		CurrentWeapon = nullptr;
-
 		if (Weapon)
 		{
+			const EWeaponType NewType = Weapon->GetItemData()->WeaponData.Type;
+			if (CurrentWeapon->bEquipped)
+			{
+				PlayerMode = NewType;
+			}
+
+			// Pickup 시도 (인벤토리에 넣음)
+			CurrentWeapon->Interact(this);
+			CurrentWeapon = nullptr;
 			CurrentWeapon = Weapon;
 
-			SetAnimLayer(CurrentWeapon->GetItemData()->WeaponData.Type);
+			SetAnimLayer(PlayerMode);
 		}
 	}
 	else
@@ -255,10 +197,7 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 		{
 			CurrentWeapon = Weapon;
 		}
-		else
-		{
-			SetAnimLayer(PlayerMode);
-		}
+		SetAnimLayer(PlayerMode);
 	}
 }
 
@@ -280,8 +219,11 @@ void ABalian::AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* 
 		break;
 	case EEquipmentPart::Shield:
 		ShieldMesh->SetStaticMesh(ItemToEquip->AssetData.Mesh);
+		ShieldMesh->SetVisibility(true);
 		if (PlayerMode == EWeaponType::OneHandSword)
 		{
+			ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+			                              TEXT("lowerarm_lSocket"));
 		}
 		break;
 	case EEquipmentPart::Bow:
@@ -309,6 +251,7 @@ void ABalian::DettachEquipment(EEquipmentPart EquipmentPart)
 	case EEquipmentPart::Weapon:
 		break;
 	case EEquipmentPart::Shield:
+		ShieldMesh->SetVisibility(false);
 		ShieldMesh->SetStaticMesh(nullptr);
 		break;
 	case EEquipmentPart::Bow:
@@ -318,6 +261,11 @@ void ABalian::DettachEquipment(EEquipmentPart EquipmentPart)
 
 	// TODO: + 능력치 조정
 	GetInventory()->DettachEquipmentItem(EquipmentPart);
+}
+
+void ABalian::SetOwningHorse(AHorse_Base* HorseToRide)
+{
+	OwningHorse = HorseToRide;
 }
 
 void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -392,13 +340,6 @@ void ABalian::Look(const FInputActionValue& Value)
 
 bool ABalian::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
 {
-	// const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
-	//
-	// if (FoundHandle && AbilitySystemComponent)
-	// {
-	// 	return AbilitySystemComponent->TryActivateAbility(*FoundHandle, bAllowRemoteActivation);
-	// }
-	// return false;
 	return Super::ActivateAbilitiesByWeaponType(Mode, bAllowRemoteActivation);
 }
 
@@ -430,6 +371,48 @@ void ABalian::FocusCameraToTarget()
 		{
 			ReleaseCamera();
 		}
+	}
+}
+
+void ABalian::EquipToHand()
+{
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->bEquipped = true;
+
+		FOnMontageBlendingOutStarted BlendingOutDelegate
+			= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
+			{
+				CurrentWeapon->AttachToComponent(
+					GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+					CurrentWeapon->GetItemData()->WeaponData.EquipmentSocket);
+			});
+
+
+		PlayAnimMontage(EquipMontages[PlayerMode]);
+
+		GetMesh()->GetAnimInstance()->Montage_SetBlendingOutDelegate(BlendingOutDelegate, EquipMontages[PlayerMode]);
+	}
+}
+
+void ABalian::AttachToPelvis()
+{
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->bEquipped = false;
+
+		FOnMontageBlendingOutStarted BlendingOutDelegate
+			= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
+			{
+				CurrentWeapon->AttachToComponent(
+					GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+					CurrentWeapon->GetItemData()->WeaponData.AttachmentSocket);
+			});
+
+
+		PlayAnimMontage(UnEquipMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
+
+		GetMesh()->GetAnimInstance()->Montage_SetBlendingOutDelegate(BlendingOutDelegate, UnEquipMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
 	}
 }
 
@@ -569,7 +552,8 @@ void ABalian::PerformInteractionCheck()
 		QueryParams.AddIgnoredActor(this);
 		FHitResult TraceHit;
 
-		if (GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd, ECC_Visibility, QueryParams))
+		if (GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd,
+		                                         ECollisionChannel::ECC_GameTraceChannel2, QueryParams))
 		{
 			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 			{
@@ -669,6 +653,7 @@ void ABalian::Interact()
 	if (IsValid(TargetInteractable.GetObject()))
 	{
 		TargetInteractable->Interact(this);
+		HUD->HideInteractionWidget();
 	}
 }
 
@@ -678,6 +663,90 @@ void ABalian::UpdateInteractionWidget() const
 	{
 		HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
 	}
+}
+
+void ABalian::SetAnimLayer(EWeaponType Mode)
+{
+	EWeaponType WeaponType = EWeaponType::Idle;
+	if (CurrentWeapon)
+	{
+		WeaponType = CurrentWeapon->GetItemData()->WeaponData.Type;
+	}
+
+	switch (Mode)
+	{
+	case EWeaponType::Idle:
+	case EWeaponType::Boxer:
+		if (CurrentWeapon && CurrentWeapon->bEquipped && UnEquipMontages.Contains(WeaponType))
+		{
+			AttachToPelvis();
+		}
+		break;
+
+	case EWeaponType::TwoHandSword:
+		// 양손 무기를 장착할거면 쉴드는 뒤쪽으로 단도검 집은 숨겨준다.
+		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                              TEXT("shield_equip"));
+		SwordZip->SetVisibility(false);
+		LongswordZip->SetVisibility(true);
+		break;
+	case EWeaponType::OneHandSword:
+		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                              TEXT("lowerarm_lSocket"));
+		LongswordZip->SetVisibility(false);
+		SwordZip->SetVisibility(true);
+		break;
+	case EWeaponType::Spear:
+	case EWeaponType::Hammer:
+	case EWeaponType::Bow:
+		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                              TEXT("shield_equip"));
+		SwordZip->SetVisibility(false);
+		LongswordZip->SetVisibility(false);
+		break;
+	default: ;
+	}
+	if (EquipMontages.Contains(PlayerMode))
+	{
+		EquipToHand();
+	}
+
+	if (AnimLayers.Contains(PlayerMode))
+	{
+		GetMesh()->LinkAnimClassLayers(AnimLayers[PlayerMode]);
+	}
+}
+
+
+bool ABalian::UpdateStateByButton(const EButtonType BtnType)
+{
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+
+	switch (BtnType)
+	{
+	case EButtonType::Idle:
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		PlayerMode = EWeaponType::Idle;
+		break;
+	case EButtonType::Fist:
+		PlayerMode = EWeaponType::Boxer;
+		break;
+	case EButtonType::Sword:
+		if (!CurrentWeapon)
+			return false;
+		PlayerMode = CurrentWeapon->GetItemData()->WeaponData.Type;
+		break;
+	case EButtonType::Bow:
+	case EButtonType::Torch:
+	case EButtonType::Horse:
+		// Call Horse
+		return false;
+	default: ;
+	}
+
+	SetAnimLayer(PlayerMode);
+
+	return true;
 }
 
 void ABalian::UpdateHealthBar() const

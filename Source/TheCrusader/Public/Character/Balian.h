@@ -8,6 +8,9 @@
 #include "TheCrusader.h"
 #include "Balian.generated.h"
 
+enum class EButtonType : uint8;
+// Forward Declaration
+class AHorse_Base;
 class UItemEquipmentBase;
 class UInputAction;
 class UInputMappingContext;
@@ -48,12 +51,10 @@ public:
 	ABalian();
 
 	void UpdateInteractionWidget() const;
-	virtual void UpdateHealthBar() const override;
+	bool UpdateStateByButton(EButtonType BtnType);
 
-	void FocusCameraToTarget();
-	
-	void EquipToHand() const;
-	void AttachToPelvis() const;
+	UFUNCTION(BlueprintImplementableEvent)
+	void MoveToLocation(FVector Location);
 
 #pragma region GETTER
 
@@ -96,12 +97,18 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetIsSprinting(bool bNewIsSprinting);
 
-	bool SetAnimLayer(EWeaponType Mode);
+	void SetAnimLayer(EWeaponType Mode);
 
 	void SetCurrentWeapon(AItem_Weapon* Weapon);
 
 	void AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip);
 	void DettachEquipment(EEquipmentPart EquipmentPart);
+
+	void SetOwningHorse(AHorse_Base* HorseToRide);
+	FORCEINLINE void SetRiding(const bool bNewRiding)
+	{
+		bRiding = bNewRiding;
+	}
 
 #pragma endregion SETTER
 
@@ -114,8 +121,15 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 #pragma endregion Character
 
+	virtual void UpdateHealthBar() const override;
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
+
+	void FocusCameraToTarget();
+	
+	void EquipToHand();
+	void AttachToPelvis();
 
 #pragma region Ability Function
 
@@ -157,8 +171,8 @@ protected:
 	UPROPERTY()
 	ATC_HUD* HUD;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
-	class UMotionWarpingComponent* MotionWarpingComponent;
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	AHorse_Base* OwningHorse;
 
 #pragma region Inventory & Interaction Properties
 
@@ -183,17 +197,33 @@ protected:
 #pragma endregion Inventory & Interaction Properties
 
 private:
+#pragma region Equipment Accessory
 
-	UPROPERTY(EditDefaultsOnly, Category = "Armour")	
+	UPROPERTY(EditDefaultsOnly, Category = "Armour")
 	UStaticMeshComponent* ShieldMesh;
-	
+
+	UPROPERTY(EditDefaultsOnly, Category = "Armour")
+	UStaticMeshComponent* LongswordZip;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Armour")
+	UStaticMeshComponent* SwordZip;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Armour")
+	UStaticMeshComponent* Quiver;
+#pragma endregion Equipment Accessory
+
+#pragma region Animation (Montage, Layers)
+
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TMap<EWeaponType, TSubclassOf<UAnimInstance>> AnimLayers;
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess))
 	TMap<EWeaponType, UAnimMontage*> EquipMontages;
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TMap<EWeaponType, UAnimMontage*> AttachMontages;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (AllowPrivateAccess))
+	TMap<EWeaponType, UAnimMontage*> UnEquipMontages;
 
+#pragma endregion Animation (Montage, Layers)
+
+#pragma region Input & Action
 	UPROPERTY(EditDefaultsOnly, Category = Input)
 	UTCInputConfig* InputConfig;
 
@@ -211,6 +241,11 @@ private:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
+
+#pragma endregion Input & Action
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	bool bRiding = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
 	bool bIsTargeting = false;

@@ -4,11 +4,15 @@
 #include "Character/Anim/EquipWeapon.h"
 
 #include "Character/Balian.h"
+#include "Item/Weapon/Item_Weapon.h"
 
 void UEquipWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {
 	if (const ABalian* Player = Cast<ABalian>(MeshComp->GetOwner()))
 	{
-		Player->EquipToHand();
+		Player->GetCurrentWeapon()->AttachToComponent(Player->GetMesh(),
+		                                              FAttachmentTransformRules::SnapToTargetIncludingScale,
+		                                              Player->GetCurrentWeapon()->GetItemData()->WeaponData.
+		                                                      EquipmentSocket);
 	}
 }

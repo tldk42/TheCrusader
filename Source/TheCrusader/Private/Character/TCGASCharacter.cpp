@@ -3,14 +3,13 @@
 
 #include "Character/TCGASCharacter.h"
 
-#include <assert.h>
 #include <IVectorChangedEventArgs.h>
 
+#include "MotionWarpingComponent.h"
 #include "TheCrusader.h"
 #include "Component/Physics/TCPhysicalAnimComp.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Engine/DecalActor.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Ability/TCGameplayAbility.h"
@@ -38,6 +37,7 @@ ATCGASCharacter::ATCGASCharacter()
 	RightArrow->SetupAttachment(GetCapsuleComponent());
 
 	PhysicalAnimComp = CreateDefaultSubobject<UTCPhysicalAnimComp>("PhysicsAnimation");
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>("MotionWarpingComponent");
 
 	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
@@ -49,22 +49,29 @@ void ATCGASCharacter::JumpSectionForCombo()
 	{
 		if (bEnableComboPeriod)
 		{
-			UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-			const FName CurrentMontageName = AnimInstance->Montage_GetCurrentSection();
-			const UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
-
 			const FName NextSectionName = JumpSectionNotify->JumpSections[UKismetMathLibrary::RandomInteger(
 				JumpSectionNotify->JumpSections.Num())];
-
 			CurrentSectionName = NextSectionName;
 
-			// AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
-			// AnimInstance->Montage_JumpToSection(NextSectionName, CurrentMontage);
+			if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
+			{
+				if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
+				{
+					const FName Sections[2] = {"LongD-1", "LongD-2"};
+
+					CurrentSectionName = Sections[UKismetMathLibrary::RandomInteger(2)];
+				}
+			}
 
 			ActivateAbilitiesByWeaponType(PlayerMode, true);
 
 			bEnableComboPeriod = false;
+
+			// UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+			// const FName CurrentMontageName = AnimInstance->Montage_GetCurrentSection();
+			// const UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
+			// AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
+			// AnimInstance->Montage_JumpToSection(NextSectionName, CurrentMontage);
 		}
 	}
 }
@@ -136,7 +143,7 @@ ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& Impact
 	return ETCHitReactDirection::Left;
 }
 
-UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation)
+UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation, bool& IsTooFar)
 {
 	int8 Index = INT8_MAX;
 	float ClosetDistance = 300.f;
@@ -162,6 +169,11 @@ UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation)
 	if (ClosetDistance > Right)
 	{
 		Index = 3;
+	}
+
+	if (ClosetDistance >= 300.f)
+	{
+		IsTooFar = true;
 	}
 
 	switch (Index)
@@ -305,8 +317,18 @@ void ATCGASCharacter::DoMeleeAttack()
 	else
 	{
 		const FName StartSections[2] = {"Combo1", "Combo1-2"};
-
 		CurrentSectionName = StartSections[UKismetMathLibrary::RandomInteger(2)];
+
+		if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
+		{
+			if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
+			{
+				// const FName Sections[1] = {"LongD-1"};
+
+				CurrentSectionName = TEXT("LongD-1");
+			}
+		}
+
 		bComboEnabled = false;
 		// 새로 몽타주를 재생한다.
 		if (ActivateAbilitiesByWeaponType(PlayerMode, true))

@@ -68,7 +68,7 @@ public:
 	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint);
 
 	UFUNCTION(BlueprintCallable)
-	UArrowComponent* GetWarpingInfo(FVector HitLocation);
+	UArrowComponent* GetWarpingInfo(FVector HitLocation, bool& IsTooFar);
 
 	UFUNCTION(BlueprintCallable)
 	virtual void PlayHitReact(FGameplayTag HitDirection, AActor* DamageCauser);
@@ -94,9 +94,7 @@ public:
 
 	// 모든 어빌리티 제거 / 서버에서만 호출되고 서버에서 제거되면 클라이언트도 제거됨
 	virtual void RemoveCharacterAbilities();
-
-	virtual void UpdateHealthBar() const;
-
+	
 	void JumpSectionForCombo();
 
 	UFUNCTION(BlueprintCallable)
@@ -120,6 +118,8 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	virtual void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 
+	virtual void UpdateHealthBar() const;
+	
 	virtual void Die();
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
@@ -147,6 +147,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly)
 	UTCPhysicalAnimComp* PhysicalAnimComp;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
+	class UMotionWarpingComponent* MotionWarpingComponent;
 
 	FGameplayTag HitDirectionFrontTag;
 	FGameplayTag HitDirectionBackTag;

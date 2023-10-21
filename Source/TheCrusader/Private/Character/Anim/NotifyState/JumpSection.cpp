@@ -15,17 +15,6 @@ void UJumpSection::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBa
 	}
 }
 
-void UJumpSection::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime)
-{
-	// if (IsValid(Animation))
-	// {
-	// 	ATCGASCharacter* Character = Cast<ATCGASCharacter>(MeshComp->GetOwner());
-	// 	if (Character)
-	// 	{
-	// 		Character->JumpSectionForCombo();
-	// 	}
-	// }
-}
 
 void UJumpSection::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {
