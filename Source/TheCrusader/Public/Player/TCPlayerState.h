@@ -52,8 +52,6 @@ public:
 	
 	virtual void BeginPlay() override;
 
-	// Attribute changed delegate handles
 	FDelegateHandle HealthChangedDelegateHandle;
-	// Attribute changed callbacks
 	virtual void HealthChanged(const FOnAttributeChangeData& Data);
 };

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "UI/Radial/RadialButtonBase.h"
 #include "TCPlayerController.generated.h"
 
 class ATC_HUD;
@@ -18,7 +17,6 @@ class THECRUSADER_API ATCPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
-	bool UpdatePlayerState(EButtonType Type);
 	void ToggleMenu();
 
 protected:

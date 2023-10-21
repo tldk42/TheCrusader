@@ -9,40 +9,6 @@
 #include "UI/TC_HUD.h"
 
 
-bool ATCPlayerController::UpdatePlayerState(const EButtonType Type)
-{
-	bool Result = false;
-	switch (Type)
-	{
-	case EButtonType::Idle:
-		UE_LOG(LogTemp, Display, TEXT("Idle"));
-		Result = PlayerRef->SetAnimLayer(EWeaponType::Idle);
-		break;
-	case EButtonType::Fist:
-		UE_LOG(LogTemp, Display, TEXT("Fist"));
-		Result = PlayerRef->SetAnimLayer(EWeaponType::Boxer);
-		break;
-	case EButtonType::Sword:
-		UE_LOG(LogTemp, Display, TEXT("Sword"));
-		Result = PlayerRef->SetAnimLayer(EWeaponType::TwoHandSword);
-		break;
-	case EButtonType::Bow:
-		UE_LOG(LogTemp, Display, TEXT("Bow"));
-		break;
-	case EButtonType::Horse:
-		UE_LOG(LogTemp, Display, TEXT("Horse"));
-		break;
-	case EButtonType::Torch:
-		UE_LOG(LogTemp, Display, TEXT("Torch"));
-		break;
-	case EButtonType::Locked:
-		UE_LOG(LogTemp, Display, TEXT("Locked"));
-		break;
-	default: ;
-	}
-
-	return Result;
-}
 
 void ATCPlayerController::ToggleMenu()
 {
