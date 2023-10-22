@@ -64,6 +64,7 @@ void UTCDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecu
 
 	float Damage = 0.f;
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatistic().DamageDef, EvaluationParameters, Damage);
+	Damage += FMath::Max<float>(Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 10.0f);
 
 	const float DamageDone = Damage * AttackPower / DefensePower;
 	if (DamageDone > 0.f)
