@@ -97,9 +97,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetIsSprinting(bool bNewIsSprinting);
 
-	void SetAnimLayer(EWeaponType Mode);
+	void SetAnimLayer();
 
 	void SetCurrentWeapon(AItem_Weapon* Weapon);
+
+	void SetCurrentBow(AItem_Weapon_Bow* Bow);
 
 	void AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip);
 	void DettachEquipment(EEquipmentPart EquipmentPart);
@@ -128,8 +130,10 @@ protected:
 
 	void FocusCameraToTarget();
 	
-	void EquipToHand();
-	void AttachToPelvis();
+	void EquipToHand(bool bMelee);
+	void AttachToPelvis(bool bMelee);
+
+	void SetVisibility_Accessory(bool bShield, bool bSword, bool bLongSword) const;
 
 #pragma region Ability Function
 

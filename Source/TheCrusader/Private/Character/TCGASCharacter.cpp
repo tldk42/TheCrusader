@@ -7,6 +7,7 @@
 
 #include "MotionWarpingComponent.h"
 #include "TheCrusader.h"
+#include "Character/EnemyBase.h"
 #include "Component/Physics/TCPhysicalAnimComp.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -63,7 +64,7 @@ void ATCGASCharacter::JumpSectionForCombo()
 				}
 			}
 
-			ActivateAbilitiesByWeaponType(PlayerMode, true);
+			ActivateAbilitiesByWeaponType(CombatMode, true);
 
 			bEnableComboPeriod = false;
 
@@ -119,6 +120,11 @@ float ATCGASCharacter::GetMaxStamina() const
 	}
 
 	return 0.0f;
+}
+
+AItem_Weapon_Bow* ATCGASCharacter::GetCurrentBow() const
+{
+	return CurrentBow;
 }
 
 ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint)
@@ -331,15 +337,22 @@ void ATCGASCharacter::DoMeleeAttack()
 
 		bComboEnabled = false;
 		// 새로 몽타주를 재생한다.
-		if (ActivateAbilitiesByWeaponType(PlayerMode, true))
-			if (ActivateAbilitiesByWeaponType(PlayerMode, true))
+		if (ActivateAbilitiesByWeaponType(CombatMode, true))
+			if (ActivateAbilitiesByWeaponType(CombatMode, true))
 			{
-				if (PlayerMode == EWeaponType::Idle)
+				if (CombatMode == EWeaponType::Idle)
 				{
 					// SetAnimLayer(EWeaponType::Boxer);
 				}
 			}
 	}
+}
+
+void ATCGASCharacter::DoShoot()
+{
+	FGameplayTagContainer Container;
+	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Shoot"));
+	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
 bool ATCGASCharacter::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
@@ -438,8 +451,12 @@ void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, c
 {
 	UE_LOG(LogTemp, Warning, TEXT("DAMAGED"));
 
-	SetActorRotation(
-		UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+	// if (IsValid(DamageCauser) && IsA(AEnemyBase::StaticClass()))
+	// {
+	// 	SetActorRotation(
+	// 		UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+	// }
+	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
 
 	PhysicalAnimComp->HitReaction(HitInfo);
 	if (!TargetCharacter)

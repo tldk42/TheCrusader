@@ -65,6 +65,7 @@ void AEnemyBase::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const 
 
 void AEnemyBase::HighlightBorder() const
 {
+	ShowFloatingBar();
 	InstancedWidget->HighlightBorder();
 }
 

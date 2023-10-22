@@ -72,7 +72,7 @@ protected:
 	FInteractableData InstancedInteractableData;
 
 #pragma region Component
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
 	UCapsuleComponent* InteractionCollision;
 
@@ -128,7 +128,6 @@ protected:
 	int32 InputMappingPriority = 1;
 #pragma endregion InputMapping
 
-	float LastDeltaTime = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
 	bool bSprinting = false;

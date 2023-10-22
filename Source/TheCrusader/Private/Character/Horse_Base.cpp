@@ -97,8 +97,6 @@ void AHorse_Base::Tick(float DeltaTime)
 	{
 		InputSide = UKismetMathLibrary::FInterpTo(InputSide, .0f, DeltaTime, InputSide + .00001f);
 	}
-
-	LastDeltaTime = DeltaTime;
 }
 
 void AHorse_Base::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -245,10 +243,11 @@ void AHorse_Base::MoveActionBinding(const FInputActionValue& InputActionValue)
 
 	InputForward = UKismetMathLibrary::FInterpTo(InputForward, InputValueY,
 	                                             GetWorld()->DeltaTimeSeconds,
-	                                             InputForward <= .1f ? .5f : InputForward);
+	                                             InputForward <= .1f ? .2f : InputForward * .4f);
 
 	// 무시할만한 입력 -> 속도 저하
-	bShouldStop = AxisValue.Size() <= .2f ? true : false;
+	if (InputValueY <= 0.3f && AxisValue.Y <= 0.2f)
+		bShouldStop = AxisValue.Size() <= .2f ? true : false;
 
 	bShouldStopTurn = UKismetMathLibrary::Abs(AxisValue.Y) <= .1f ? true : false;
 

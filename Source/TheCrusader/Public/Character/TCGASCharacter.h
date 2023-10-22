@@ -10,6 +10,7 @@
 #include "Anim/NotifyState/JumpSection.h"
 #include "TCGASCharacter.generated.h"
 
+class AItem_Weapon_Bow;
 class ADecalActor;
 class UTCPhysicalAnimComp;
 class AItem_Weapon;
@@ -64,6 +65,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Crusader|Attribute")
 	float GetMaxStamina() const;
 
+	AItem_Weapon_Bow* GetCurrentBow() const;
+
 	UFUNCTION(BlueprintCallable)
 	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint);
 
@@ -94,7 +97,7 @@ public:
 
 	// 모든 어빌리티 제거 / 서버에서만 호출되고 서버에서 제거되면 클라이언트도 제거됨
 	virtual void RemoveCharacterAbilities();
-	
+
 	void JumpSectionForCombo();
 
 	UFUNCTION(BlueprintCallable)
@@ -103,6 +106,9 @@ public:
 protected:
 	UFUNCTION(BlueprintCallable)
 	virtual void DoMeleeAttack();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void DoShoot();
 
 	virtual bool ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation);
 
@@ -119,7 +125,7 @@ protected:
 	virtual void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 
 	virtual void UpdateHealthBar() const;
-	
+
 	virtual void Die();
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
@@ -190,9 +196,11 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	AItem_Weapon* CurrentWeapon;
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	AItem_Weapon_Bow* CurrentBow;
 
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	EWeaponType PlayerMode;
+	EWeaponType CombatMode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Character | Montage")
 	FName CurrentSectionName;
