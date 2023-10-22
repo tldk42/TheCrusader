@@ -18,7 +18,7 @@ AItem_Weapon::AItem_Weapon()
 	ItemQuantity = 1;
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("Capsule");
-	CapsuleComponent->SetupAttachment(PickupMesh);
+	CapsuleComponent->SetupAttachment(Mesh);
 
 	CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap);
 	CapsuleComponent->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap);
@@ -33,7 +33,7 @@ void AItem_Weapon::EventBeginWeaponAttack_Implementation(FGameplayTag EventTag)
 void AItem_Weapon::EventEndWeaponAttack_Implementation()
 {
 	CachedOverlappedPawns.Empty();
-	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); 
 }
 
 void AItem_Weapon::BeginPlay()
@@ -69,8 +69,8 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 				IgnoreActors.Add(OwnerPlayer);
 
 
-				UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), PickupMesh->GetSocketLocation("start"),
-				                                                  PickupMesh->GetSocketLocation("end"), 10.f,
+				UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), Mesh->GetSocketLocation("start"),
+				                                                  Mesh->GetSocketLocation("end"), 10.f,
 				                                                  ObjectTypesArray,
 				                                                  false, IgnoreActors,
 				                                                  EDrawDebugTrace::ForDuration, HitResult, true);
@@ -114,21 +114,25 @@ void AItem_Weapon::InitializePickup(const TSubclassOf<UItemBase> BaseClass, cons
 			DesiredItemID, DesiredItemID.ToString());
 		if (ItemData)
 		{
-			ItemRef = NewObject<UItemWeaponBase>(this, BaseClass);
+			UItemWeaponBase* ItemBase = NewObject<UItemWeaponBase>(this, BaseClass);
 
-			ItemRef->ID = ItemData->ItemID;
-			ItemRef->ItemType = ItemData->ItemType;
-			ItemRef->ItemQuality = ItemData->ItemQuality;
-			ItemRef->ItemStatistics = ItemData->ItemStatistics;
-			ItemRef->TextData = ItemData->TextData;
-			ItemRef->NumericData = ItemData->NumericData;
-			ItemRef->AssetData = ItemData->AssetData;
-			Cast<UItemWeaponBase>(ItemRef)->WeaponData = ItemData->WeaponData;
-			ItemRef->bIsPickup = true;
+			ItemBase->ID = ItemData->ItemID;
+			ItemBase->ItemType = ItemData->ItemType;
+			ItemBase->ItemQuality = ItemData->ItemQuality;
+			ItemBase->ItemStatistics = ItemData->ItemStatistics;
+			ItemBase->TextData = ItemData->TextData;
+			ItemBase->NumericData = ItemData->NumericData;
+			ItemBase->AssetData = ItemData->AssetData;
+			ItemBase->EquipmentData = ItemData->EquipmentData;
+			ItemBase->EquipmentPart = ItemData->EquipmentPart;
+			ItemBase->WeaponData = ItemData->WeaponData;
+			ItemBase->bIsPickup = true;
 
-			InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
+			InQuantity <= 0 ? ItemBase->SetQuantity(1) : ItemBase->SetQuantity(InQuantity);
 
-			PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
+			ItemRef = ItemBase;
+
+			Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
 
 			UpdateInteractableData();
 		}
