@@ -3,7 +3,9 @@
 
 #include "Character/Movement/TCMovementComponent.h"
 
+#include "AbilitySystemComponent.h"
 #include "Character/TCCharacterBase.h"
+#include "Character/TCGASCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 
@@ -74,6 +76,16 @@ const FTCGroundInfo& UTCMovementComponent::GetGroundInfo()
 	return CachedGroundInfo;
 }
 
+void UTCMovementComponent::StartAiming()
+{
+	RequestToStartADS = true;
+}
+
+void UTCMovementComponent::StopAiming()
+{
+	RequestToStartADS = false;
+}
+
 void UTCMovementComponent::PhysicsRotation(float DeltaTime)
 {
 	// const ATheCrusaderCharacter* const Character = Cast<ATheCrusaderCharacter>(CharacterOwner);
@@ -81,6 +93,35 @@ void UTCMovementComponent::PhysicsRotation(float DeltaTime)
 	// if ()
 
 	Super::PhysicsRotation(DeltaTime);
+}
+
+float UTCMovementComponent::GetMaxSpeed() const
+{
+	ATCGASCharacter* Owner = Cast<ATCGASCharacter>(GetOwner());
+	if (!Owner)
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s() No Owner"), *FString(__FUNCTION__));
+		return Super::GetMaxSpeed();
+	}
+
+	if (!Owner->IsAlive())
+	{
+		return 0.0f;
+	}
+
+	if (Owner->GetAbilitySystemComponent()->HasMatchingGameplayTag(
+		FGameplayTag::RequestGameplayTag(FName("State.Dead"))))
+	{
+		return 0.0f;
+	}
+
+
+	if (RequestToStartADS)
+	{
+		return Super::GetMaxSpeed() * ADSSpeedMultiplier;
+	}
+
+	return Super::GetMaxSpeed();
 }
 
 FVector UTCMovementComponent::ConstrainInputAcceleration(const FVector& InputAcceleration) const

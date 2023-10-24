@@ -54,10 +54,13 @@ ABalian::ABalian()
 	LongswordZip = CreateDefaultSubobject<UStaticMeshComponent>("LongswordZip");
 	LongswordZip->SetupAttachment(GetMesh(), TEXT("longsword_equip"));
 	LongswordZip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	Quiver = CreateDefaultSubobject<UStaticMeshComponent>("Quiver");
+	Quiver->SetupAttachment(GetMesh(), TEXT("QuiverSocket"));
 
 	ShieldMesh->SetVisibility(false);
 	SwordZip->SetVisibility(false);
 	LongswordZip->SetVisibility(false);
+	Quiver->SetVisibility(false);
 
 	BaseEyeHeight = 74.f;
 }
@@ -157,6 +160,14 @@ void ABalian::Tick(float DeltaTime)
 		PerformInteractionCheck();
 	}
 
+	if (GetAbilitySystemComponent()->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Aiming")))
+	{
+		if (CurrentBow)
+		{
+			CurrentBow->PredictTarget();
+		}
+	}
+
 	FocusCameraToTarget();
 }
 
@@ -203,6 +214,11 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 
 		SetAnimLayer();
 	}
+
+	if (CurrentWeapon)
+	{
+		Weapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 }
 
 void ABalian::SetCurrentBow(AItem_Weapon_Bow* Bow)
@@ -226,6 +242,11 @@ void ABalian::SetCurrentBow(AItem_Weapon_Bow* Bow)
 		{
 			CurrentBow->Interact(this);
 			CurrentBow = nullptr;
+		}
+
+		if (CurrentBow)
+		{
+			CurrentBow->GetBowComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 	}
 }
@@ -311,7 +332,7 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_LMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::LMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
-		                                        ETriggerEvent::Started, this, &ThisClass::RMBClick);
+		                                        ETriggerEvent::Triggered, this, &ThisClass::RMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
 		                                        ETriggerEvent::Completed, this, &ThisClass::RMBCompleted);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
@@ -502,8 +523,16 @@ void ABalian::SetVisibility_Accessory(const bool bShield, const bool bSword, con
 	{
 		SwordZip->SetVisibility(true);
 		LongswordZip->SetVisibility(false);
-		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                              ("lowerarm_lSocket"));
+		if (CombatMode == EWeaponType::OneHandSword)
+		{
+			ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+			                              ("lowerarm_lSocket"));
+		}
+		else
+		{
+			ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+			                              TEXT("shield_equip"));
+		}
 	}
 	else if (CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type == EWeaponType::TwoHandSword)
 	{
@@ -518,6 +547,15 @@ void ABalian::SetVisibility_Accessory(const bool bShield, const bool bSword, con
 		LongswordZip->SetVisibility(false);
 		ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
 		                              TEXT("shield_equip"));
+	}
+
+	if (CurrentBow)
+	{
+		Quiver->SetVisibility(true);
+	}
+	else
+	{
+		Quiver->SetVisibility(false);
 	}
 }
 
@@ -581,7 +619,7 @@ void ABalian::RMBClick()
 	FGameplayTagContainer Container;
 	if (CombatMode == EWeaponType::Bow)
 	{
-		Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Aiming"));
+		Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Aiming"));
 	}
 	else
 	{
@@ -594,6 +632,10 @@ void ABalian::RMBClick()
 			CombatMode = EWeaponType::Boxer;
 			SetAnimLayer();
 		}
+		if (CombatMode == EWeaponType::Bow)
+		{
+			HUD->ShowCrosshair();
+		}
 	}
 }
 
@@ -601,7 +643,15 @@ void ABalian::RMBCompleted()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"RMB 해제"));
 	FGameplayTagContainer Container;
-	Container.AddTag(FGameplayTag::RequestGameplayTag("State.Blocking"));
+	if (CombatMode == EWeaponType::Bow)
+	{
+		Container.AddTag(FGameplayTag::RequestGameplayTag("State.Aiming"));
+		HUD->HideCrosshair();
+	}
+	else
+	{
+		Container.AddTag(FGameplayTag::RequestGameplayTag("State.Blocking"));
+	}
 	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(Container);
 }
 
@@ -801,7 +851,6 @@ void ABalian::SetAnimLayer()
 	if (CurrentBow && CurrentBow->bEquipped && UnEquipMontages.Contains(EWeaponType::Bow))
 	{
 		AttachToPelvis(false);
-		UE_LOG(LogTemp, Warning, TEXT("Called"));
 	}
 
 	SetVisibility_Accessory(false, false, false);

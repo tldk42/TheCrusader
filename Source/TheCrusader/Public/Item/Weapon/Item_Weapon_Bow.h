@@ -18,6 +18,8 @@ public:
 	{
 		return BowSkeletalMesh;
 	};
+	
+	void PredictTarget();
 
 protected:
 	virtual void BeginPlay() override;
@@ -25,9 +27,12 @@ protected:
 	virtual void InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity) override;
 	virtual void InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity) override;
 
+
 protected:
-	UPROPERTY(EditInstanceOnly, Category = "Weapon | Components")
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = "Weapon | Components")
 	USkeletalMeshComponent* BowSkeletalMesh;
 
-public:
+private:
+	FVector2D ScreenPos;
+	
 };

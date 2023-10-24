@@ -129,7 +129,7 @@ protected:
 	void OnIsSprintingChanged(bool bNewIsSprinting);
 
 	void FocusCameraToTarget();
-	
+
 	void EquipToHand(bool bMelee);
 	void AttachToPelvis(bool bMelee);
 
@@ -172,7 +172,7 @@ protected:
 #pragma endregion Interact
 
 protected:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	ATC_HUD* HUD;
 
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
@@ -212,7 +212,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Armour")
 	UStaticMeshComponent* SwordZip;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Armour")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Armour", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* Quiver;
 #pragma endregion Equipment Accessory
 
