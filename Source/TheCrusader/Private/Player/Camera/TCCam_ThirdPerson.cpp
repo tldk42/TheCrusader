@@ -11,13 +11,16 @@
 #include "Player/TCPlayerController.h"
 
 static int DrawCameraDebugInfo = 0;
-FAutoConsoleVariableRef CVar_DrawCameraDebugInfo(TEXT("TheCrusader.DrawCameraDebugInfo"), DrawCameraDebugInfo, TEXT("True to draw camera debugging info."), ECVF_Cheat);
+FAutoConsoleVariableRef CVar_DrawCameraDebugInfo(
+	TEXT("TheCrusader.DrawCameraDebugInfo"), DrawCameraDebugInfo, TEXT("True to draw camera debugging info."),
+	ECVF_Cheat);
 
 
 UTCCam_ThirdPerson::UTCCam_ThirdPerson()
 {
 	CameraToPivot.SetTranslation(FVector(-300.f, 0.f, 0.f));
-	FOV = 75.f;
+	FOV = 90.f;
+	LastFOV = FOV;
 
 	PivotPitchLimits = FVector2D(-80.f, 80.f);
 	PivotYawLimits = FVector2D(-179.9f, 180.f);
@@ -27,19 +30,19 @@ UTCCam_ThirdPerson::UTCCam_ThirdPerson()
 
 	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 0.0f, 0.0f), 1.0f, 10.f, 0, true));
 
-	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 3.0f, 0.0f),  1.f, 8.f, 0, false));
+	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 3.0f, 0.0f), 1.f, 8.f, 0, false));
 	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, -3.0f, 0.0f), 1.f, 8.f, 0, false));
 
-	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 6.0f, 0.0f),  0.9f, 8.f, 0, false));
+	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 6.0f, 0.0f), 0.9f, 8.f, 0, false));
 	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, -6.0f, 0.0f), 0.9f, 8.f, 0, false));
 
-	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 9.0f, 0.0f),  0.8f, 8.f, 0, false));
+	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 9.0f, 0.0f), 0.8f, 8.f, 0, false));
 	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, -9.0f, 0.0f), 0.8f, 8.f, 0, false));
-	
-	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 12.0f, 0.0f),  0.7f, 8.f, 0, false));
+
+	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 12.0f, 0.0f), 0.7f, 8.f, 0, false));
 	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, -12.0f, 0.0f), 0.7f, 8.f, 0, false));
-	
-	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(8.0f, 0.0f, 0.0f),  1.0f, 8.f, 0, false));
+
+	CameraPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(8.0f, 0.0f, 0.0f), 1.0f, 8.f, 0, false));
 
 	SafeLocPenetrationAvoidanceRays.Add(FPenetrationAvoidanceRay(FRotator(0.0f, 0.0f, 0.0f), 1.0f, 14.f, 0, true));
 
@@ -50,7 +53,7 @@ UTCCam_ThirdPerson::UTCCam_ThirdPerson()
 }
 
 void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* CineCamComp, float DeltaTime,
-	FTViewTarget& OutVT)
+                                      FTViewTarget& OutVT)
 {
 	// let super do any updates it wants (e.g. camera shakes), but we will fully determine the POV below
 	Super::UpdateCamera(ViewTarget, CineCamComp, DeltaTime, OutVT);
@@ -67,7 +70,8 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 
 		AdjustAutoFollowMode(ViewTarget);
 
-		if ((AutoFollowMode == ECameraAutoFollowMode::LazyFollow) && !LastControlRotation.Equals(PlayerCameraManager->PCOwner->GetControlRotation(), 0.1f))
+		if ((AutoFollowMode == ECameraAutoFollowMode::LazyFollow) && !LastControlRotation.Equals(
+			PlayerCameraManager->PCOwner->GetControlRotation(), 0.1f))
 		{
 			LazyFollowDelay_TimeRemaining = LazyFollowDelayAfterUserControl;
 		}
@@ -75,7 +79,7 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 		{
 			LazyFollowDelay_TimeRemaining -= DeltaTime;
 		}
-		
+
 		// Compute pivot goal transform
 		FTransform const PivotToWorld = ComputePivotToWorld(ViewTarget);
 
@@ -147,17 +151,20 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 #if ENABLE_DRAW_DEBUG
 			if (bDrawDebugPivot || DrawCameraDebugInfo)
 			{
-				::DrawDebugCoordinateSystem(World, PivotToWorld.GetLocation(), PivotToWorld.Rotator(), 24.f, false, -1.f, 0, 2.f);
-				::DrawDebugCoordinateSystem(World, SmoothedPivotToWorld.GetLocation(), SmoothedPivotToWorld.Rotator(), 24.f, false, -1.f, 0, 2.f);
+				::DrawDebugCoordinateSystem(World, PivotToWorld.GetLocation(), PivotToWorld.Rotator(), 24.f, false,
+				                            -1.f, 0, 2.f);
+				::DrawDebugCoordinateSystem(World, SmoothedPivotToWorld.GetLocation(), SmoothedPivotToWorld.Rotator(),
+				                            24.f, false, -1.f, 0, 2.f);
 			}
 #endif
 			FinalCameraRot.Yaw += ComputeYawModifier(ViewTarget, DeltaTime);
 			FinalCameraRot.Roll += ComputeRollModifier(ViewTarget, DeltaTime);
-			
+
 			// Set desired pov members with results
 			OutVT.POV.Location = CameraGoalLoc;
 			OutVT.POV.Rotation = FinalCameraRot;
-			OutVT.POV.FOV = ComputeFinalFOV(ViewTarget);
+			LastFOV = ComputeFinalFOV(ViewTarget);
+			OutVT.POV.FOV = LastFOV;
 		}
 
 		PlayerCameraManager->ApplyCameraModifiers(DeltaTime, OutVT.POV);
@@ -176,9 +183,11 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 			FTransform ViewTargetTransform = GetViewTargetToWorld(ViewTarget);
 
 			const float MeshZOffset = GetViewTargetMeshHeightOffset(ViewTarget);
-			FVector IdealSafeLocationLocal = ViewTarget->GetActorLocation() + ViewTarget->GetActorQuat().RotateVector(SafeLocationOffset) + FVector(0.f, 0.f, MeshZOffset);
-		
-			const FMatrix CamSpaceToWorld = FQuatRotationTranslationMatrix(ViewTarget->GetActorQuat(), ViewTarget->GetActorLocation());
+			FVector IdealSafeLocationLocal = ViewTarget->GetActorLocation() + ViewTarget->GetActorQuat().
+				RotateVector(SafeLocationOffset) + FVector(0.f, 0.f, MeshZOffset);
+
+			const FMatrix CamSpaceToWorld = FQuatRotationTranslationMatrix(
+				ViewTarget->GetActorQuat(), ViewTarget->GetActorLocation());
 			IdealSafeLocationLocal = CamSpaceToWorld.InverseTransformPosition(IdealSafeLocationLocal);
 
 			const FVector SafeLocationLocal = SafeLocationInterpolator.Eval(IdealSafeLocationLocal, DeltaTime);
@@ -193,7 +202,9 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 			// adjust worst location origin to prevent any penetration
 			if (bValidateSafeLoc)
 			{
-				PreventCameraPenetration(ViewTarget, SafeLocPenetrationAvoidanceRays, ViewTarget->GetActorLocation(), IdealSafeLocation, DeltaTime, ValidatedSafeLocation, LastSafeLocBlockedPct, true);
+				PreventCameraPenetration(ViewTarget, SafeLocPenetrationAvoidanceRays, ViewTarget->GetActorLocation(),
+				                         IdealSafeLocation, DeltaTime, ValidatedSafeLocation, LastSafeLocBlockedPct,
+				                         true);
 			}
 
 #if ENABLE_DRAW_DEBUG
@@ -201,16 +212,18 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 			{
 				::DrawDebugSphere(World, IdealSafeLocation, 12.f, 12.f, FColor::Yellow);
 				::DrawDebugSphere(World, ValidatedSafeLocation, 10.f, 10.f, FColor::White);
-			}			
+			}
 #endif
 
 			// note: we skip predictive avoidance while this mode is blending out
 			bool const bSingleRayPenetrationCheck = !bDoPredictiveAvoidance || !bIsActive;
-			PreventCameraPenetration(ViewTarget, CameraPenetrationAvoidanceRays, ValidatedSafeLocation, DesiredCamLoc, DeltaTime, ValidatedCameraLocation, LastPenetrationBlockedPct, bSingleRayPenetrationCheck);
+			PreventCameraPenetration(ViewTarget, CameraPenetrationAvoidanceRays, ValidatedSafeLocation, DesiredCamLoc,
+			                         DeltaTime, ValidatedCameraLocation, LastPenetrationBlockedPct,
+			                         bSingleRayPenetrationCheck);
 		}
 
 		OutVT.POV.Location = ValidatedCameraLocation;
-			   		 
+
 		LastCameraToWorld = FTransform(OutVT.POV.Rotation, OutVT.POV.Location);
 		LastControlRotation = PlayerCameraManager->PCOwner->GetControlRotation();
 	}
@@ -224,7 +237,10 @@ void UTCCam_ThirdPerson::OnBecomeActive(AActor* ViewTarget, UTCCameraMode* Previ
 	Super::OnBecomeActive(ViewTarget, PreviouslyActiveMode);
 
 	SkipNextInterpolation();
-	LastCameraToWorld = PlayerCameraManager ? FTransform(PlayerCameraManager->GetCameraRotation(), PlayerCameraManager->GetCameraLocation()) : FTransform::Identity;
+	LastCameraToWorld = PlayerCameraManager
+		                    ? FTransform(PlayerCameraManager->GetCameraRotation(),
+		                                 PlayerCameraManager->GetCameraLocation())
+		                    : FTransform::Identity;
 
 	LazyFollowDelay_TimeRemaining = 0.f;
 }
@@ -243,10 +259,11 @@ void UTCCam_ThirdPerson::SkipNextInterpolation()
 }
 
 void UTCCam_ThirdPerson::PreventCameraPenetration(AActor* Target, TArray<FPenetrationAvoidanceRay>& Rays,
-	const FVector& SafeLoc, const FVector& IdealCameraLoc, float DeltaTime, FVector& OutCameraLoc,
-	float& DistBlockedPct, bool bSingleRayOnly)
+                                                  const FVector& SafeLoc, const FVector& IdealCameraLoc,
+                                                  float DeltaTime, FVector& OutCameraLoc,
+                                                  float& DistBlockedPct, bool bSingleRayOnly)
 {
-UWorld* const World = PlayerCameraManager->GetWorld();
+	UWorld* const World = PlayerCameraManager->GetWorld();
 
 	float HardBlockedPct = DistBlockedPct;
 	float SoftBlockedPct = DistBlockedPct;
@@ -259,7 +276,7 @@ UWorld* const World = PlayerCameraManager->GetWorld();
 
 	FCollisionQueryParams SphereParams(SCENE_QUERY_STAT(CameraPenetration), false, Target);
 	FCollisionShape SphereShape = FCollisionShape::MakeSphere(0.f);
-	
+
 	BlockingActors.Empty();
 
 	for (auto& Ray : Rays)
@@ -287,19 +304,22 @@ UWorld* const World = PlayerCameraManager->GetWorld();
 				FHitResult Hit;
 				const FVector TraceStart = SafeLoc;
 				const FVector TraceEnd = RayTarget;
-				bool bHit = World->SweepSingleByChannel(Hit, TraceStart, TraceEnd, FQuat::Identity, TraceChannel, SphereShape, SphereParams);
+				bool bHit = World->SweepSingleByChannel(Hit, TraceStart, TraceEnd, FQuat::Identity, TraceChannel,
+				                                        SphereShape, SphereParams);
 				Ray.FramesUntilNextTrace = Ray.TraceInterval;
 
 #if ENABLE_DRAW_DEBUG
 				if (bDrawDebugPenetrationAvoidance)
 				{
-					::DrawDebugLineTraceSingle(World, TraceStart, TraceEnd, EDrawDebugTrace::ForDuration, bHit, Hit, FColor::White, FColor::Red, 0.1f);
+					::DrawDebugLineTraceSingle(World, TraceStart, TraceEnd, EDrawDebugTrace::ForDuration, bHit, Hit,
+					                           FColor::White, FColor::Red, 0.1f);
 				}
 #endif
 
 				if (bHit)
 				{
-					const float NewBlockPct = FMath::GetMappedRangeValueClamped(FVector2D(1.f, 0.f), FVector2D(Hit.Time, 1.f), Ray.WorldWeight);
+					const float NewBlockPct = FMath::GetMappedRangeValueClamped(
+						FVector2D(1.f, 0.f), FVector2D(Hit.Time, 1.f), Ray.WorldWeight);
 					DistBlockedPctThisFrame = FMath::Min(NewBlockPct, DistBlockedPctThisFrame);
 
 					// This feeler got a hit, so do another trace next frame
@@ -330,7 +350,8 @@ UWorld* const World = PlayerCameraManager->GetWorld();
 		// interpolate smoothly out
 		if ((PenetrationBlendOutTime > DeltaTime) && (bSkipNextPredictivePenetrationAvoidanceBlend == false))
 		{
-			DistBlockedPct = DistBlockedPct + DeltaTime / PenetrationBlendOutTime * (DistBlockedPctThisFrame - DistBlockedPct);
+			DistBlockedPct = DistBlockedPct + DeltaTime / PenetrationBlendOutTime * (DistBlockedPctThisFrame -
+				DistBlockedPct);
 		}
 		else
 		{
@@ -348,7 +369,8 @@ UWorld* const World = PlayerCameraManager->GetWorld();
 			// interpolate smoothly in
 			if ((PenetrationBlendInTime > DeltaTime) && (bSkipNextPredictivePenetrationAvoidanceBlend == false))
 			{
-				DistBlockedPct = DistBlockedPct - DeltaTime / PenetrationBlendInTime * (DistBlockedPct - SoftBlockedPct);
+				DistBlockedPct = DistBlockedPct - DeltaTime / PenetrationBlendInTime * (DistBlockedPct -
+					SoftBlockedPct);
 			}
 			else
 			{
@@ -396,7 +418,8 @@ float UTCCam_ThirdPerson::GetViewTargetMeshHeightOffset(const AActor* ViewTarget
 		if (CharMesh)
 		{
 			const float BaseRelZ = PlayerCameraManager->BasePelvisRelativeZ;
-			const float CurRelZ = CharMesh->GetBoneLocation(PlayerCameraManager->PelvisBoneName, EBoneSpaces::ComponentSpace).Z;
+			const float CurRelZ = CharMesh->GetBoneLocation(PlayerCameraManager->PelvisBoneName,
+			                                                EBoneSpaces::ComponentSpace).Z;
 			return CurRelZ - BaseRelZ;
 		}
 	}
@@ -412,7 +435,9 @@ FQuat UTCCam_ThirdPerson::GetAutoFollowPivotToWorldRotation(const AActor* Follow
 
 FTransform UTCCam_ThirdPerson::ComputePivotToWorld(const AActor* ViewTarget) const
 {
-		const ATCPlayerController* const PC = PlayerCameraManager ? Cast<ATCPlayerController>(PlayerCameraManager->PCOwner) : nullptr;
+	const ATCPlayerController* const PC = PlayerCameraManager
+		                                      ? Cast<ATCPlayerController>(PlayerCameraManager->PCOwner)
+		                                      : nullptr;
 	if (PC == nullptr)
 	{
 		return LastPivotToWorld;
@@ -451,7 +476,8 @@ FTransform UTCCam_ThirdPerson::ComputePivotToWorld(const AActor* ViewTarget) con
 				else
 				{
 					const FVector LastPivotDir = -LastUnsmoothedPivotToWorld.GetRotation().GetForwardVector();
-					const FVector LastPivotAimPoint = LastUnsmoothedPivotToWorld.GetLocation() + LastPivotDir * LazyFollowLaziness;
+					const FVector LastPivotAimPoint = LastUnsmoothedPivotToWorld.GetLocation() + LastPivotDir *
+						LazyFollowLaziness;
 					const FVector NewPivotDir = PivotToWorld.GetLocation() - LastPivotAimPoint;
 					NewPivotRot = FRotationMatrix::MakeFromXZ(NewPivotDir, FVector::UpVector).Rotator();
 				}
@@ -466,18 +492,20 @@ FTransform UTCCam_ThirdPerson::ComputePivotToWorld(const AActor* ViewTarget) con
 				}
 				else
 				{
-					PlayerCameraManager->LimitViewPitch(NewPivotRot, LazyAutoFollowPitchLimits.X, LazyAutoFollowPitchLimits.Y);
+					PlayerCameraManager->LimitViewPitch(NewPivotRot, LazyAutoFollowPitchLimits.X,
+					                                    LazyAutoFollowPitchLimits.Y);
 					PivotToWorld.SetRotation(NewPivotRot.Quaternion());
 				}
 			}
 		}
 	}
-	
+
 	// Clamp final rotation values
 	FRotator P2WRot = PivotToWorld.Rotator();
 	const FRotator ViewTargetToWorldRot = ViewTargetToWorld.Rotator();
 	PlayerCameraManager->LimitViewPitch(P2WRot, PivotPitchLimits.X, PivotPitchLimits.Y);
-	PlayerCameraManager->LimitViewYaw(P2WRot, ViewTargetToWorldRot.Yaw + PivotYawLimits.X, ViewTargetToWorldRot.Yaw + PivotYawLimits.Y);
+	PlayerCameraManager->LimitViewYaw(P2WRot, ViewTargetToWorldRot.Yaw + PivotYawLimits.X,
+	                                  ViewTargetToWorldRot.Yaw + PivotYawLimits.Y);
 	P2WRot.Roll = 0.f;
 	PivotToWorld.SetRotation(P2WRot.Quaternion());
 
@@ -487,13 +515,14 @@ FTransform UTCCam_ThirdPerson::ComputePivotToWorld(const AActor* ViewTarget) con
 FTransform UTCCam_ThirdPerson::ComputeCameraToWorld(const AActor* ViewTarget, FTransform const& PivotToWorld) const
 {
 	FTransform AdjustedCameraToPivot = GetCameraToPivot(ViewTarget);
-	
+
 	// maybe adjust based on pitch
 	if (CameraToPivot_PitchAdjustmentCurve)
 	{
 		const float Pitch = PivotToWorld.Rotator().Pitch;
 		const float PitchAlpha = FMath::GetRangePct(PivotPitchLimits, Pitch);
-		const FVector PitchAdjustmentOffset = CameraToPivot_PitchAdjustmentCurve->GetVectorValue(PitchAlpha) * CameraToPivot_PitchAdjustmentCurveScale;
+		const FVector PitchAdjustmentOffset = CameraToPivot_PitchAdjustmentCurve->GetVectorValue(PitchAlpha) *
+			CameraToPivot_PitchAdjustmentCurveScale;
 		AdjustedCameraToPivot.AddToTranslation(PitchAdjustmentOffset);
 	}
 
@@ -501,17 +530,26 @@ FTransform UTCCam_ThirdPerson::ComputeCameraToWorld(const AActor* ViewTarget, FT
 	if (CameraToPivot_SpeedAdjustmentCurve)
 	{
 		const float CurSpeed = ViewTarget ? ViewTarget->GetVelocity().Size() : 0.f;
-		const float SpeedAlpha = FMath::Clamp(FMath::GetRangePct(CameraToPivot_SpeedAdjustment_SpeedRange, CurSpeed), 0.f, 1.f);
+		const float SpeedAlpha = FMath::Clamp(FMath::GetRangePct(CameraToPivot_SpeedAdjustment_SpeedRange, CurSpeed),
+		                                      0.f, 1.f);
 
-		const FVector SpeedAdjustmentOffset = CameraToPivot_SpeedAdjustmentCurve->GetVectorValue(SpeedAlpha) * CameraToPivot_SpeedAdjustmentCurveScale;
+		const FVector SpeedAdjustmentOffset = CameraToPivot_SpeedAdjustmentCurve->GetVectorValue(SpeedAlpha) *
+			CameraToPivot_SpeedAdjustmentCurveScale;
 		AdjustedCameraToPivot.AddToTranslation(SpeedAdjustmentOffset);
 	}
-	
+
 	return AdjustedCameraToPivot * PivotToWorld;
 }
 
+float UTCCam_ThirdPerson::ComputeFinalFOV(const AActor* ViewTarget) const
+{
+	const float InterpolatedFOV = FMath::FInterpTo(LastFOV, FOV, ViewTarget->GetWorld()->GetDeltaSeconds(), 3.f);
+
+	return InterpolatedFOV;
+}
+
 void UTCCam_ThirdPerson::ComputePredictiveLookAtPoint(FVector& LookAtPointOutput, const AActor* ViewTarget,
-	float DeltaTime)
+                                                      float DeltaTime)
 {
 	LookAtPointOutput = LookAtPointOutput + ViewTarget->GetVelocity() * PredictiveLookatTime;
 }

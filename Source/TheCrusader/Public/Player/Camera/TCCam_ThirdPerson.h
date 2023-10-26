@@ -136,10 +136,7 @@ protected:
 	FTransform ComputeCameraToWorld(const AActor* ViewTarget, FTransform const& PivotToWorld) const;
 
 	/** Computes the final FOV value during camera updates. Override as needed.*/
-	virtual float ComputeFinalFOV(const AActor* ViewTarget) const
-	{
-		return FOV;
-	}
+	virtual float ComputeFinalFOV(const AActor* ViewTarget) const;
 
 	/** Computes the final Yaw Modifier applied to the camera's rotation. Override as needed. */
 	virtual float ComputeYawModifier(const AActor* ViewTarget, float DeltaTime)
@@ -319,6 +316,8 @@ protected:
 
 	/** Cache of previous owner PlayerController's control rotation */
 	FRotator LastControlRotation;
+
+	float LastFOV;
 
 	/** When enabled, debug visuals will be rendered for the camera pivot point */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
