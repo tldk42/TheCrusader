@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "ItemBase.generated.h"
 
-class AItemPickup;
+class AItem;
 class UInventoryComponent;
 class ABalian;
 /**
@@ -42,7 +42,7 @@ public:
 	virtual void Use(ABalian* Character);
 
 	UFUNCTION(Category = "Item")
-	virtual AItemPickup* Drop(int32 NumToRemove);
+	virtual AItem* Drop(int32 NumToRemove);
 
 	virtual void UnEquip(ABalian* Character);
 

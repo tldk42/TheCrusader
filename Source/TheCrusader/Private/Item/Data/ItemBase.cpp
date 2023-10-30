@@ -57,7 +57,7 @@ void UItemBase::Use(ABalian* Character)
 {
 }
 
-AItemPickup* UItemBase::Drop(const int32 NumToRemove)
+AItem* UItemBase::Drop(const int32 NumToRemove)
 {
 	if (OwningInventory && OwningInventory->FindMatchingItem(this))
 	{
@@ -72,7 +72,7 @@ AItemPickup* UItemBase::Drop(const int32 NumToRemove)
 		{
 			const int32 RemovedQuantity = OwningInventory->RemoveAmountOfItem(this, NumToRemove);
 
-			AItemPickup* PickupItem = GetWorld()->SpawnActor<AItemPickup>(
+			AItem* PickupItem = GetWorld()->SpawnActor<AItem>(
 				AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
 			PickupItem->InitializeDrop(this, RemovedQuantity);
 			return PickupItem;

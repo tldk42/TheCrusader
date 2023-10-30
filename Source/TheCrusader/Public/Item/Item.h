@@ -7,6 +7,7 @@
 #include "Interfaces/Interactable.h"
 #include "Item.generated.h"
 
+class UCapsuleComponent;
 class UDataTable;
 class UItemBase;
 
@@ -30,6 +31,8 @@ public:
 	virtual void InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity);
 	virtual void InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity);
 
+	void DisableInteractionCollision()const;
+
 	FORCEINLINE virtual UItemBase* GetItemData() const { return ItemRef; }
 	FORCEINLINE UStaticMeshComponent* GetMesh() const { return Mesh; }
 
@@ -50,6 +53,9 @@ protected:
 
 	UPROPERTY(EditInstanceOnly, Category = "Pickup | Components")
 	UStaticMeshComponent* Mesh;
+
+	UPROPERTY(EditInstanceOnly, Category = "Pickup | Components")
+	UCapsuleComponent* InteractionCollision;
 
 	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Initialization")
 	UDataTable* ItemDataTable;

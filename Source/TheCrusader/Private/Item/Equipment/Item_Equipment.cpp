@@ -35,7 +35,7 @@ void AItem_Equipment::InitializePickup(const TSubclassOf<UItemBase> BaseClass, c
 
 			ItemRef = ItemBase;
 
-			PickupMesh->SetStaticMesh(ItemData->AssetData.Mesh);
+			Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
 
 			UpdateInteractableData();
 		}

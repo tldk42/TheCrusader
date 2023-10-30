@@ -5,6 +5,7 @@
 
 #include "Character/Balian.h"
 #include "Component/Inventory/InventoryComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Item/Data/ItemBase.h"
 
 AItem::AItem()
@@ -17,6 +18,12 @@ AItem::AItem()
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>("PickupMesh");
 	Mesh->SetupAttachment(OriginRoot);
 	Mesh->SetSimulatePhysics(false);
+
+	InteractionCollision = CreateDefaultSubobject<UCapsuleComponent>("InteractionCollision");
+	InteractionCollision->SetupAttachment(Mesh);
+	InteractionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	InteractionCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2,
+	                                                    ECollisionResponse::ECR_Block);
 }
 
 void AItem::BeginFocus()
@@ -90,6 +97,11 @@ void AItem::InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity)
 	Mesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
 
 	UpdateInteractableData();
+}
+
+void AItem::DisableInteractionCollision() const
+{
+	InteractionCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AItem::BeginPlay()

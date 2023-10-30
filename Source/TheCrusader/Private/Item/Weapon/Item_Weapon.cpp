@@ -18,7 +18,7 @@ AItem_Weapon::AItem_Weapon()
 	ItemQuantity = 1;
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("Capsule");
-	CapsuleComponent->SetupAttachment(Mesh);
+	CapsuleComponent->SetupAttachment(OriginRoot);
 
 	CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap);
 	CapsuleComponent->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap);
@@ -33,7 +33,7 @@ void AItem_Weapon::EventBeginWeaponAttack_Implementation(FGameplayTag EventTag)
 void AItem_Weapon::EventEndWeaponAttack_Implementation()
 {
 	CachedOverlappedPawns.Empty();
-	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision); 
+	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AItem_Weapon::BeginPlay()
@@ -46,8 +46,9 @@ void AItem_Weapon::BeginPlay()
 	CapsuleComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
-                             int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
+                                  UPrimitiveComponent* OtherComp,
+                                  int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	if (APawn* OwnerPlayer = GetInstigator())
 	{
@@ -64,20 +65,16 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 				// Enemy
 				ObjectTypesArray.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel3));
 				// Player
-				TArray<AActor*, FDefaultAllocator> IgnoreActors;
+				TArray<AActor*> IgnoreActors;
 				IgnoreActors.Add(this);
 				IgnoreActors.Add(OwnerPlayer);
 
 
 				UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), Mesh->GetSocketLocation("start"),
-				                                                  Mesh->GetSocketLocation("end"), 10.f,
+				                                                  Mesh->GetSocketLocation("end"), 50.f,
 				                                                  ObjectTypesArray,
 				                                                  false, IgnoreActors,
-				                                                  EDrawDebugTrace::ForDuration, HitResult, true);
-				// UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), PickupMesh->GetSocketLocation("start"),
-				//                                                   PickupMesh->GetSocketLocation("end"),
-				//                                                   50.f, ObjectTypesArray, false, IgnoreActors,
-				//                                                   EDrawDebugTrace::None, HitResult, true);
+				                                                  EDrawDebugTrace::ForOneFrame, HitResult, true);
 				if (HitResult.bBlockingHit)
 				{
 					UE_LOG(LogTemp, Warning, TEXT("??"));
@@ -100,7 +97,7 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 }
 
 void AItem_Weapon::OnEndOverlap(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor,
-                           class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+                                class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
 	// UKismetSystemLibrary::Delay(GetWorld(), .2f, FLatentActionInfo());
 	bAttacked = false;

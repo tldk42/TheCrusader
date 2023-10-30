@@ -3,12 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Item/ItemPickup.h"
+#include "Item/Item.h"
 #include "Item/Data/ItemEquipmentBase.h"
 #include "Item_Equipment.generated.h"
 
 UCLASS()
-class THECRUSADER_API AItem_Equipment : public AItemPickup
+class THECRUSADER_API AItem_Equipment : public AItem
 {
 	GENERATED_BODY()
 

@@ -27,7 +27,7 @@ UItemBase* UItemEquipmentBase::CreateItemCopy() const
 	return ItemCopy;
 }
 
-AItemPickup* UItemEquipmentBase::Drop(int32 NumToRemove)
+AItem* UItemEquipmentBase::Drop(int32 NumToRemove)
 {
 	if (OwningInventory && OwningInventory->FindMatchingItem(this))
 	{
@@ -38,7 +38,7 @@ AItemPickup* UItemEquipmentBase::Drop(int32 NumToRemove)
 				Actor->GetActorForwardVector(), 30.f) * 150.f;
 		const FVector End = Start - FVector(0, 0, 500.f);
 
-		DrawDebugLine(Actor->GetWorld(), Start, End, FColor::Red, true, 1.f, 0, 1.f);
+		// DrawDebugLine(Actor->GetWorld(), Start, End, FColor::Red, true, 1.f, 0, 1.f);
 
 		if (FHitResult HitResult; Actor->GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
 		{
@@ -75,7 +75,7 @@ void UItemEquipmentBase::UnEquip(ABalian* Character)
 	{
 		if (Character->GetInventory())
 		{
-			Character->DettachEquipment(EquipmentPart);
+			Character->DetachEquipment(EquipmentPart);
 		}
 	}
 }

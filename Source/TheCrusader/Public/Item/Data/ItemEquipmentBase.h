@@ -16,7 +16,7 @@ class THECRUSADER_API UItemEquipmentBase : public UItemBase
 
 protected:
 	virtual UItemBase* CreateItemCopy() const override;
-	virtual AItemPickup* Drop(int32 NumToRemove) override;
+	virtual AItem* Drop(int32 NumToRemove) override;
 	virtual void Use(ABalian* Character) override;
 	virtual void UnEquip(ABalian* Character) override;
 

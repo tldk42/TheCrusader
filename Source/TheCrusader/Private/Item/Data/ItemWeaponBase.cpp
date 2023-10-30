@@ -6,6 +6,7 @@
 #include "Character/Balian.h"
 #include "Component/Inventory/InventoryComponent.h"
 #include "Item/Weapon/Item_Weapon.h"
+#include "Item/Weapon/Item_Weapon_Bow.h"
 #include "Kismet/KismetMathLibrary.h"
 
 UItemBase* UItemWeaponBase::CreateItemCopy() const
@@ -20,13 +21,15 @@ UItemBase* UItemWeaponBase::CreateItemCopy() const
 	ItemCopy->NumericData = this->NumericData;
 	ItemCopy->ItemStatistics = this->ItemStatistics;
 	ItemCopy->AssetData = this->AssetData;
+	ItemCopy->EquipmentData = this->EquipmentData;
+	ItemCopy->EquipmentPart = this->EquipmentPart;
 	ItemCopy->WeaponData = this->WeaponData;
 	ItemCopy->bIsCopy = true;
 
 	return ItemCopy;
 }
 
-AItemPickup* UItemWeaponBase::Drop(int32 NumToRemove)
+AItem* UItemWeaponBase::Drop(int32 NumToRemove)
 {
 	if (OwningInventory && OwningInventory->FindMatchingItem(this))
 	{
@@ -37,14 +40,24 @@ AItemPickup* UItemWeaponBase::Drop(int32 NumToRemove)
 				Actor->GetActorForwardVector(), 30.f) * 150.f;
 		const FVector End = Start - FVector(0, 0, 500.f);
 
-		DrawDebugLine(Actor->GetWorld(), Start, End, FColor::Red, true, 1.f, 0, 1.f);
+		// DrawDebugLine(Actor->GetWorld(), Start, End, FColor::Red, true, 1.f, 0, 1.f);
 
 		if (FHitResult HitResult; Actor->GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility))
 		{
 			const int32 RemovedQuantity = OwningInventory->RemoveAmountOfItem(this, NumToRemove);
 
-			AItem_Weapon* WeaponItem = Actor->GetWorld()->SpawnActor<AItem_Weapon>(
-				AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
+			AItem_Weapon* WeaponItem;
+
+			if (WeaponData.Type == EWeaponType::Bow)
+			{
+				WeaponItem = Actor->GetWorld()->SpawnActor<AItem_Weapon_Bow>(
+					AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
+			}
+			else
+			{
+				WeaponItem = Actor->GetWorld()->SpawnActor<AItem_Weapon>(
+					AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
+			}
 
 			WeaponItem->InitializeDrop(this, RemovedQuantity);
 
@@ -64,14 +77,21 @@ void UItemWeaponBase::Use(ABalian* Character)
 			Character->GetInventory()->HandleEquipmentItem(this);
 		}
 
-	
+
 		if (AItem_Weapon* Weapon = Cast<AItem_Weapon>(Drop(1)))
 		{
+			Weapon->DisableInteractionCollision();
 			Weapon->SetInstigator(Character);
-			Weapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			Weapon->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-			                          WeaponData.AttachmentSocket);
-			Character->SetCurrentWeapon(Weapon);
+			                          EquipmentData.DetachmentSocket);
+			if (WeaponData.Type == EWeaponType::Bow)
+			{
+				Character->SetCurrentBow(Cast<AItem_Weapon_Bow>(Weapon));
+			}
+			else
+			{
+				Character->SetCurrentWeapon(Weapon);
+			}
 		}
 	}
 }
