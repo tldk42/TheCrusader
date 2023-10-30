@@ -45,6 +45,9 @@ protected:
 #endif
 
 protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	USceneComponent* OriginRoot;
+
 	UPROPERTY(EditInstanceOnly, Category = "Pickup | Components")
 	UStaticMeshComponent* Mesh;
 

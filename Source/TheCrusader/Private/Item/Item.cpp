@@ -11,9 +11,12 @@ AItem::AItem()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	OriginRoot = CreateDefaultSubobject<USceneComponent>("RootComponent");
+	SetRootComponent(OriginRoot);
+
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>("PickupMesh");
+	Mesh->SetupAttachment(OriginRoot);
 	Mesh->SetSimulatePhysics(false);
-	SetRootComponent(Mesh);
 }
 
 void AItem::BeginFocus()
@@ -102,7 +105,7 @@ void AItem::BeginPlay()
 void AItem::TakePickup(const ABalian* Taker)
 {
 	if (!IsPendingKillPending()) // ???
-		{
+	{
 		if (ItemRef)
 		{
 			if (UInventoryComponent* PlayerInventory = Taker->GetInventory())
@@ -135,7 +138,7 @@ void AItem::TakePickup(const ABalian* Taker)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Pickup internal item reference was somehow null!"));
 		}
-		}
+	}
 }
 
 void AItem::UpdateInteractableData()
@@ -150,17 +153,17 @@ void AItem::UpdateInteractableData()
 void AItem::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-	
+
 	const FName ChangedPropertyName = PropertyChangedEvent.Property
-										  ? PropertyChangedEvent.Property->GetFName()
-										  : NAME_None;
-	
+		                                  ? PropertyChangedEvent.Property->GetFName()
+		                                  : NAME_None;
+
 	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(AItem, DesiredItemID))
 	{
 		if (ItemDataTable)
 		{
 			const FString ContextString{DesiredItemID.ToString()};
-	
+
 			if (const FItemData* ItemData = ItemDataTable->FindRow<FItemData>(DesiredItemID, DesiredItemID.ToString()))
 			{
 				Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
