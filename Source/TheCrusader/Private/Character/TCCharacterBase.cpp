@@ -1,13 +1,15 @@
 #include "Character/TCCharacterBase.h"
-#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
-#include "GameFramework/SpringArmComponent.h"
+#include "Item/Data/ItemEquipmentBase.h"
 
-ATCCharacterBase::ATCCharacterBase()
+ATCCharacterBase::ATCCharacterBase(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
+	PrimaryActorTick.bCanEverTick = true;
+
 	Body = CreateDefaultSubobject<USkeletalMeshComponent>("Body");
 	Face = CreateDefaultSubobject<USkeletalMeshComponent>("Face");
 	Beard = CreateDefaultSubobject<USkeletalMeshComponent>("Extra");
@@ -48,9 +50,6 @@ ATCCharacterBase::ATCCharacterBase()
 	LongswordZip->SetVisibility(false);
 	Quiver->SetVisibility(false);
 
-	UpdateMorphTargets();
-	SetMasterPoseComponentForParts();
-
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	bUseControllerRotationPitch = false;
@@ -65,6 +64,11 @@ ATCCharacterBase::ATCCharacterBase()
 	GetCharacterMovement()->MaxWalkSpeed = 500.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
+}
+
+void ATCCharacterBase::BeginPlay()
+{
+	Super::BeginPlay();
 }
 
 void ATCCharacterBase::SetMasterPoseComponentForParts() const
@@ -85,9 +89,9 @@ float ATCCharacterBase::GetMorphTargetValue(const bool bCanMorph)
 	return bCanMorph ? 1.f : 0.f;
 }
 
-void ATCCharacterBase::UpdateMorphTargets()
+void ATCCharacterBase::UpdateMorphTargets() const
 {
-	USkeletalMeshComponent* BodyParts[8];
+	USkeletalMeshComponent* BodyParts[9];
 
 	BodyParts[0] = Body;
 	BodyParts[1] = Face;
@@ -105,14 +109,76 @@ void ATCCharacterBase::UpdateMorphTargets()
 		{
 			if (UAnimInstance* AnimInstance = Part->GetAnimInstance())
 			{
-				AnimInstance->SetMorphTarget("hat_equipped", GetMorphTargetValue(bHatEquipped));
-				AnimInstance->SetMorphTarget("gloves_equipped", GetMorphTargetValue(bGlovesEquipped));
+				AnimInstance->SetMorphTarget(TEXT("hat_equipped"), GetMorphTargetValue(bHatEquipped));
+				AnimInstance->SetMorphTarget(TEXT("hat_equpped"), GetMorphTargetValue(bHatEquipped));
+				AnimInstance->SetMorphTarget(TEXT("gloves_equipped"), GetMorphTargetValue(bGlovesEquipped));
 			}
 			else
 			{
-				Part->SetMorphTarget("hat_equipped", GetMorphTargetValue(bHatEquipped), true);
-				Part->SetMorphTarget("gloves_equipped", GetMorphTargetValue(bGlovesEquipped), true);
+				Part->SetMorphTarget(TEXT("hat_equipped"), GetMorphTargetValue(bHatEquipped), true);
+				Part->SetMorphTarget(TEXT("hat_equpped"), GetMorphTargetValue(bHatEquipped), true);
+				Part->SetMorphTarget(TEXT("gloves_equipped"), GetMorphTargetValue(bGlovesEquipped), true);
 			}
 		}
+	}
+}
+
+void ATCCharacterBase::AttachEquipment(const EEquipmentPart EquipmentPart, const UItemEquipmentBase* ItemToEquip)
+{
+	switch (EquipmentPart)
+	{
+	case EEquipmentPart::Head:
+		bHatEquipped = true;
+		Hat->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Hat->SetAnimInstanceClass(MorphAnimInstance);
+		UpdateMorphTargets();
+		break;
+	case EEquipmentPart::Torso:
+		Torso->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		break;
+	case EEquipmentPart::Hair:
+		Hair->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Hair->SetAnimInstanceClass(MorphAnimInstance);
+		break;
+	case EEquipmentPart::Arm:
+		Arm->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Arm->SetAnimInstanceClass(MorphAnimInstance);
+		break;
+	case EEquipmentPart::Legs:
+		Leg->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		break;
+	case EEquipmentPart::Feet:
+		Feet->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Feet->SetAnimInstanceClass(MorphAnimInstance);
+		break;
+	case EEquipmentPart::Shield:
+		ShieldMesh->SetStaticMesh(ItemToEquip->AssetData.Mesh);
+		ShieldMesh->SetVisibility(true);
+		break;
+	default: ;
+	}
+
+	// TODO: + 능력치 조정
+}
+
+void ATCCharacterBase::DetachEquipment(EEquipmentPart EquipmentPart)
+{
+	switch (EquipmentPart)
+	{
+	case EEquipmentPart::Head:
+		break;
+	case EEquipmentPart::Torso:
+		break;
+	case EEquipmentPart::Arm:
+		break;
+	case EEquipmentPart::Legs:
+		break;
+	case EEquipmentPart::Feet:
+		break;
+	case EEquipmentPart::Shield:
+		ShieldMesh->SetVisibility(false);
+		ShieldMesh->SetStaticMesh(nullptr);
+		break;
+	default: ;
 	}
 }

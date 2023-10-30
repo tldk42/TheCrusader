@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Data/ItemDataStructs.h"
 #include "GameFramework/Character.h"
-#include "InputActionValue.h"
 #include "TCCharacterBase.generated.h"
 
 
@@ -14,14 +14,23 @@ class ATCCharacterBase : public ACharacter
 	GENERATED_BODY()
 
 public:
-	ATCCharacterBase();
+	ATCCharacterBase(const FObjectInitializer& ObjectInitializer);
 
-	virtual float GetMorphTargetValue(bool bCanMorph);
+public:
+	UFUNCTION(BlueprintCallable)
+	virtual void AttachEquipment(const EEquipmentPart EquipmentPart, const UItemEquipmentBase* ItemToEquip);
+
+	UFUNCTION(BlueprintCallable)
+	virtual void DetachEquipment(EEquipmentPart EquipmentPart);
 
 protected:
+	virtual void BeginPlay() override;
+
 	void SetMasterPoseComponentForParts() const;
+	static float GetMorphTargetValue(bool bCanMorph);
+
 	UFUNCTION(BlueprintCallable)
-	void UpdateMorphTargets();
+	void UpdateMorphTargets() const;
 
 protected:
 #pragma region Modular Parts
@@ -61,6 +70,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Armour", meta = (AllowPrivateAccess = true))
 	UStaticMeshComponent* Quiver;
 #pragma endregion Equipment Accessory
+
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	TSubclassOf<UAnimInstance> MorphAnimInstance;
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bCrouching = false;
 
 	bool bHatEquipped = false;
 
