@@ -17,7 +17,7 @@ class UMainMenu;
  * 
  */
 UCLASS()
-class THECRUSADER_API ATC_HUD : public AHUD , public IHealthHUD
+class THECRUSADER_API ATC_HUD : public AHUD, public IHealthHUD
 {
 	GENERATED_BODY()
 
@@ -33,9 +33,19 @@ public:
 	void HideRadialWidget();
 	void UpdateActiveRadialWidget(const int Index) const;
 
+	UFUNCTION(BlueprintCallable)
+	void ShowCrosshair() const;
+	UFUNCTION(BlueprintCallable)
+	void HideCrosshair() const;
+
 	void ShowInteractionWidget() const;
 	void HideInteractionWidget() const;
 	void UpdateInteractionWidget(const FInteractableData* InteractableData) const;
+
+	FORCEINLINE UUserWidget* GetCrosshairWidget() const
+	{
+		return CrosshairWidget;
+	};
 
 	virtual void SetHP(float InPercent) override;
 
@@ -48,6 +58,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UPlayerInGameUI> PlayerInGameUIClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
+	TSubclassOf<UUserWidget> CrosshairClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Widgets")
 	TSubclassOf<UInteractionWidget> InteractionWidgetClass;
@@ -65,6 +78,9 @@ protected:
 
 	UPROPERTY()
 	UPlayerInGameUI* PlayerInGameUI;
+
+	UPROPERTY(BlueprintReadWrite)
+	UUserWidget* CrosshairWidget;
 
 	UPROPERTY()
 	UInteractionWidget* InteractionWidget;

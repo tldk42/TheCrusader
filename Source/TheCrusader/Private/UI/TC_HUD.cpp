@@ -4,7 +4,9 @@
 #include "UI/TC_HUD.h"
 
 #include "TheCrusader.h"
+#include "Character/Balian.h"
 #include "Components/ProgressBar.h"
+#include "Kismet/GameplayStatics.h"
 #include "UI/MainMenu.h"
 #include "UI/Interaction/InteractionWidget.h"
 #include "UI/PlayerWindow/PlayerInGameUI.h"
@@ -34,6 +36,13 @@ void ATC_HUD::BeginPlay()
 	// 	RadialMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 	// }
 
+	if (CrosshairClass)
+	{
+		CrosshairWidget = CreateWidget<UUserWidget>(GetWorld(), CrosshairClass);
+		CrosshairWidget->AddToViewport();
+		HideCrosshair();
+	}
+
 	if (PlayerInGameUIClass)
 	{
 		PlayerInGameUI = CreateWidget<UPlayerInGameUI>(GetWorld(), PlayerInGameUIClass);
@@ -61,21 +70,26 @@ void ATC_HUD::DisplayMenu()
 
 void ATC_HUD::ToggleMenu()
 {
-	if (bIsMenuVisible)
+	if (ABalian* Player = Cast<ABalian>(GetOwningPawn()))
 	{
-		HideMenu();
+		// Player->ActivateInventoryCamera(!bIsMenuVisible);
 
-		const FInputModeGameOnly InputModeGameOnly;
-		GetOwningPlayerController()->SetInputMode(InputModeGameOnly);
-		GetOwningPlayerController()->SetShowMouseCursor(false);
-	}
-	else
-	{
-		DisplayMenu();
-
-		const FInputModeGameAndUI InputModeGameAndUI;
-		GetOwningPlayerController()->SetInputMode(InputModeGameAndUI);
-		GetOwningPlayerController()->SetShowMouseCursor(true);
+		if (bIsMenuVisible)
+		{
+			HideMenu();
+			UGameplayStatics::SetGamePaused(GetWorld(), false);
+			const FInputModeGameOnly InputModeGameOnly;
+			GetOwningPlayerController()->SetInputMode(InputModeGameOnly);
+			GetOwningPlayerController()->SetShowMouseCursor(false);
+		}
+		else
+		{
+			DisplayMenu();
+			UGameplayStatics::SetGamePaused(GetWorld(), true);
+			const FInputModeGameAndUI InputModeUI;
+			GetOwningPlayerController()->SetInputMode(InputModeUI);
+			GetOwningPlayerController()->SetShowMouseCursor(true);
+		}
 	}
 }
 
@@ -112,6 +126,24 @@ void ATC_HUD::UpdateActiveRadialWidget(const int Index) const
 	if (RadialMenuWidget)
 	{
 		RadialMenuWidget->UpdateActiveBar(Index);
+	}
+}
+
+void ATC_HUD::ShowCrosshair() const
+{
+	if (CrosshairWidget)
+	{
+		CrosshairWidget->SetIsEnabled(true);
+		CrosshairWidget->SetVisibility(ESlateVisibility::Visible);
+	}
+}
+
+void ATC_HUD::HideCrosshair() const
+{
+	if (CrosshairWidget)
+	{
+		CrosshairWidget->SetVisibility(ESlateVisibility::Collapsed);
+		CrosshairWidget->SetIsEnabled(false);
 	}
 }
 
