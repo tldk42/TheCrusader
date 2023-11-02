@@ -5,9 +5,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "FTCGameplayTags.h"
-#include "Camera/CameraComponent.h"
 #include "Component/Inventory/InventoryComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "Input/TCInputComponent.h"
 #include "MotionWarpingComponent.h"
@@ -17,50 +15,30 @@
 #include "Item/Weapon/Item_Weapon.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Player/TCPlayerState.h"
-#include "Player/Camera/TCPlayerCameraBehavior.h"
 #include "UI/TC_HUD.h"
 #include "UI/Radial/RadialButtonBase.h"
 #include "Character/Horse_Base.h"
+#include "Character/InventoryPreview.h"
+#include "Character/Movement/TCMovementComponent.h"
+#include "GAS/Attribute/TCAttributeSet.h"
 #include "Item/Weapon/Item_Weapon_Bow.h"
 
 
-ABalian::ABalian()
-	: InteractionCheckFrequency(.1f),
+ABalian::ABalian(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<
+		  UTCMovementComponent>(ACharacter::CharacterMovementComponentName)),
+	  InteractionCheckFrequency(.1f),
 	  InteractionCheckDistance(225.f),
 	  DesiredSprintSpeed(450),
 	  DesiredWalkSpeed(170)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	TCMovementComponent = Cast<UTCMovementComponent>(GetCharacterMovement());
 
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 	InventoryComponent->SetSlotsCapacity(20);
 	InventoryComponent->SetWeightCapacity(50.f);
-
-	ShieldMesh = CreateDefaultSubobject<UStaticMeshComponent>("Shield");
-	ShieldMesh->SetupAttachment(GetMesh(), TEXT("shield_equip"));
-	ShieldMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	SwordZip = CreateDefaultSubobject<UStaticMeshComponent>("SwordZip");
-	SwordZip->SetupAttachment(GetMesh(), TEXT("sword_equip"));
-	SwordZip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	LongswordZip = CreateDefaultSubobject<UStaticMeshComponent>("LongswordZip");
-	LongswordZip->SetupAttachment(GetMesh(), TEXT("longsword_equip"));
-	LongswordZip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	Quiver = CreateDefaultSubobject<UStaticMeshComponent>("Quiver");
-	Quiver->SetupAttachment(GetMesh(), TEXT("QuiverSocket"));
-
-	ShieldMesh->SetVisibility(false);
-	SwordZip->SetVisibility(false);
-	LongswordZip->SetVisibility(false);
-	Quiver->SetVisibility(false);
 
 	BaseEyeHeight = 74.f;
 }
@@ -72,6 +50,7 @@ void ABalian::BeginPlay()
 	HUD = Cast<ATC_HUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
 
 	UpdateHealthBar();
+	SpawnPreviewBalian();
 }
 
 void ABalian::PossessedBy(AController* NewController)
@@ -108,13 +87,12 @@ void ABalian::PossessedBy(AController* NewController)
 			}
 		}
 
-		// if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
-		// {
-		// 	// Set Health/Mana/Stamina to their max. This is only necessary for *Respawn*.
-		// 	SetHealth(GetMaxHealth());
-		// 	SetStamina(GetMaxStamina());
-		// 	SetShield(GetMaxShield());
-		// }
+		if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
+		{
+			// Set Health/Mana/Stamina to their max. This is only necessary for *Respawn*.
+			AttributeSetBase->SetHealth(GetMaxHealth());
+			AttributeSetBase->SetStamina(GetMaxStamina());
+		}
 	}
 }
 
@@ -139,14 +117,13 @@ void ABalian::OnRep_PlayerState()
 
 		InitializeAttributes();
 
-		// if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
-		// {
-		// 	// Set Health/Mana/Stamina/Shield to their max. This is only for *Respawn*. It will be set (replicated) by the
-		// 	// Server, but we call it here just to be a little more responsive.
-		// 	SetHealth(GetMaxHealth());
-		// 	SetStamina(GetMaxStamina());
-		// 	SetShield(GetMaxShield());
-		// }
+		if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
+		{
+			// Set Health/Mana/Stamina/Shield to their max. This is only for *Respawn*. It will be set (replicated) by the
+			// Server, but we call it here just to be a little more responsive.
+			AttributeSetBase->SetHealth(GetMaxHealth());
+			AttributeSetBase->SetStamina(GetMaxStamina());
+		}
 	}
 }
 
@@ -165,6 +142,7 @@ void ABalian::Tick(float DeltaTime)
 		if (CurrentBow)
 		{
 			CurrentBow->PredictTarget();
+			AimingDuration += DeltaTime;
 		}
 	}
 
@@ -182,11 +160,16 @@ void ABalian::SetIsSprinting(bool bNewIsSprinting)
 
 void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 {
+	float WeaponDamage = 0;
 	if (CurrentWeapon)
 	{
+		WeaponDamage -= CurrentWeapon->GetItemData()->WeaponData.BaseDamage;
+
 		if (Weapon)
 		{
 			const EWeaponType NewType = Weapon->GetItemData()->WeaponData.Type;
+			WeaponDamage += Weapon->GetItemData()->WeaponData.BaseDamage;
+
 			if (CurrentWeapon->bEquipped)
 			{
 				CombatMode = NewType;
@@ -196,29 +179,40 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 			CurrentWeapon->Interact(this);
 			CurrentWeapon = nullptr;
 			CurrentWeapon = Weapon;
-
-			SetAnimLayer();
 		}
 		else
 		{
 			CurrentWeapon->Interact(this);
 			CurrentWeapon = nullptr;
+
+			if (CombatMode != EWeaponType::Idle)
+			{
+				CombatMode = EWeaponType::Boxer;
+				HUD->UpdateActiveRadialWidget(1);
+			}
 		}
 	}
 	else
 	{
 		if (Weapon)
 		{
+			WeaponDamage = Weapon->GetItemData()->WeaponData.BaseDamage;
 			CurrentWeapon = Weapon;
 		}
-
-		SetAnimLayer();
 	}
 
-	if (CurrentWeapon)
+	SetAnimLayer();
+
+	if (Weapon)
 	{
-		Weapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		PreviewCharacter->AttachEquipment(EEquipmentPart::Weapon, Weapon->GetItemData());
 	}
+	else
+	{
+		PreviewCharacter->DetachEquipment(EEquipmentPart::Weapon);
+	}
+
+	AttributeSetBase->SetAttackPower(AttributeSetBase->GetAttackPower() + WeaponDamage);
 }
 
 void ABalian::SetCurrentBow(AItem_Weapon_Bow* Bow)
@@ -249,65 +243,30 @@ void ABalian::SetCurrentBow(AItem_Weapon_Bow* Bow)
 			CurrentBow->GetBowComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 	}
+
+	if (Bow)
+	{
+		PreviewCharacter->AttachEquipment(EEquipmentPart::Bow, Bow->GetItemData());
+	}
+	else
+	{
+		PreviewCharacter->DetachEquipment(EEquipmentPart::Bow);
+	}
 }
 
-void ABalian::AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip)
+void ABalian::AttachEquipment(const EEquipmentPart EquipmentPart, const UItemEquipmentBase* ItemToEquip)
 {
-	switch (EquipmentPart)
-	{
-	case EEquipmentPart::Head:
-		break;
-	case EEquipmentPart::Torso:
-		break;
-	case EEquipmentPart::Arm:
-		break;
-	case EEquipmentPart::Pants:
-		break;
-	case EEquipmentPart::Feet:
-		break;
-	case EEquipmentPart::Weapon:
-		break;
-	case EEquipmentPart::Shield:
-		ShieldMesh->SetStaticMesh(ItemToEquip->AssetData.Mesh);
-		ShieldMesh->SetVisibility(true);
-		if (CombatMode == EWeaponType::OneHandSword)
-		{
-			ShieldMesh->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-			                              TEXT("lowerarm_lSocket"));
-		}
-		break;
-	case EEquipmentPart::Bow:
-		break;
-	default: ;
-	}
+	Super::AttachEquipment(EquipmentPart, ItemToEquip);
 
-	// TODO: + 능력치 조정
+	PreviewCharacter->AttachEquipment(EquipmentPart, ItemToEquip);
 }
 
-void ABalian::DettachEquipment(EEquipmentPart EquipmentPart)
+void ABalian::DetachEquipment(EEquipmentPart EquipmentPart)
 {
-	switch (EquipmentPart)
-	{
-	case EEquipmentPart::Head:
-		break;
-	case EEquipmentPart::Torso:
-		break;
-	case EEquipmentPart::Arm:
-		break;
-	case EEquipmentPart::Pants:
-		break;
-	case EEquipmentPart::Feet:
-		break;
-	case EEquipmentPart::Weapon:
-		break;
-	case EEquipmentPart::Shield:
-		ShieldMesh->SetVisibility(false);
-		ShieldMesh->SetStaticMesh(nullptr);
-		break;
-	case EEquipmentPart::Bow:
-		break;
-	default: ;
-	}
+	Super::DetachEquipment(EquipmentPart);
+
+	PreviewCharacter->DetachEquipment(EquipmentPart);
+
 
 	// TODO: + 능력치 조정
 	GetInventory()->DettachEquipmentItem(EquipmentPart);
@@ -347,6 +306,8 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		                                        ETriggerEvent::Triggered, this, &ThisClass::MMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Numpad1,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::Ability1);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Crouch,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::CrouchPressed);
 	}
 }
 
@@ -364,6 +325,23 @@ void ABalian::Move(const FInputActionValue& Value)
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		if (MovementVector.Y >= 0.6f)
+		{
+			InputDirection = ECardinalDirection::Forward;
+		}
+		else if (MovementVector.X >= 0.5f)
+		{
+			InputDirection = ECardinalDirection::Right;
+		}
+		else if (MovementVector.X <= -0.5f)
+		{
+			InputDirection = ECardinalDirection::Left;
+		}
+		else
+		{
+			InputDirection = ECardinalDirection::Backward;
+		}
 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
@@ -424,7 +402,7 @@ void ABalian::FocusCameraToTarget()
 	}
 }
 
-void ABalian::EquipToHand(bool bMelee)
+void ABalian::EquipToHand(const bool bMelee)
 {
 	if (bMelee)
 	{
@@ -435,9 +413,10 @@ void ABalian::EquipToHand(bool bMelee)
 			FOnMontageBlendingOutStarted BlendingOutDelegate
 				= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
 				{
-					CurrentWeapon->AttachToComponent(
-						GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-						CurrentWeapon->GetItemData()->WeaponData.EquipmentSocket);
+					if (CurrentWeapon)
+						CurrentWeapon->AttachToComponent(
+							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+							CurrentWeapon->GetItemData()->EquipmentData.AttachmentSocket);
 				});
 
 
@@ -456,9 +435,10 @@ void ABalian::EquipToHand(bool bMelee)
 			FOnMontageBlendingOutStarted BlendingOutDelegate
 				= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
 				{
-					CurrentBow->AttachToComponent(
-						GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-						CurrentBow->GetItemData()->WeaponData.EquipmentSocket);
+					if (CurrentBow)
+						CurrentBow->AttachToComponent(
+							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+							CurrentBow->GetItemData()->EquipmentData.AttachmentSocket);
 				});
 
 
@@ -481,9 +461,10 @@ void ABalian::AttachToPelvis(const bool bMelee)
 			FOnMontageBlendingOutStarted BlendingOutDelegate
 				= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
 				{
-					CurrentWeapon->AttachToComponent(
-						GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-						CurrentWeapon->GetItemData()->WeaponData.AttachmentSocket);
+					if (CurrentWeapon)
+						CurrentWeapon->AttachToComponent(
+							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+							CurrentWeapon->GetItemData()->EquipmentData.DetachmentSocket);
 				});
 
 
@@ -503,9 +484,10 @@ void ABalian::AttachToPelvis(const bool bMelee)
 			FOnMontageBlendingOutStarted BlendingOutDelegate
 				= FOnMontageBlendingOutStarted::CreateLambda([this](UAnimMontage*, bool)
 				{
-					CurrentBow->AttachToComponent(
-						GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-						CurrentBow->GetItemData()->WeaponData.AttachmentSocket);
+					if (CurrentBow)
+						CurrentBow->AttachToComponent(
+							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+							CurrentBow->GetItemData()->EquipmentData.DetachmentSocket);
 				});
 
 
@@ -517,8 +499,11 @@ void ABalian::AttachToPelvis(const bool bMelee)
 	}
 }
 
-void ABalian::SetVisibility_Accessory(const bool bShield, const bool bSword, const bool bLongSword) const
+void ABalian::SetVisibility_Accessory() const
 {
+	HandArrow->SetVisibility(false);
+	Quiver->SetVisibility(false);
+
 	if (CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type == EWeaponType::OneHandSword)
 	{
 		SwordZip->SetVisibility(true);
@@ -549,13 +534,10 @@ void ABalian::SetVisibility_Accessory(const bool bShield, const bool bSword, con
 		                              TEXT("shield_equip"));
 	}
 
-	if (CurrentBow)
+	if (CurrentBow && CombatMode == EWeaponType::Bow)
 	{
 		Quiver->SetVisibility(true);
-	}
-	else
-	{
-		Quiver->SetVisibility(false);
+		HandArrow->SetVisibility(true);
 	}
 }
 
@@ -593,7 +575,7 @@ void ABalian::ReleaseCamera()
 
 void ABalian::SpaceBarClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"점프 시작"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"점프 시작"));
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Jump"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
@@ -602,7 +584,7 @@ void ABalian::SpaceBarClick()
 
 void ABalian::LMBClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LMB 클릭"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LMB 클릭"));
 	if (CombatMode == EWeaponType::Bow)
 	{
 		DoShoot();
@@ -615,7 +597,7 @@ void ABalian::LMBClick()
 
 void ABalian::RMBClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"RMB 클릭"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"RMB 클릭"));
 	FGameplayTagContainer Container;
 	if (CombatMode == EWeaponType::Bow)
 	{
@@ -630,6 +612,7 @@ void ABalian::RMBClick()
 		if (CombatMode == EWeaponType::Idle)
 		{
 			CombatMode = EWeaponType::Boxer;
+			HUD->UpdateActiveRadialWidget(1);
 			SetAnimLayer();
 		}
 		if (CombatMode == EWeaponType::Bow)
@@ -657,7 +640,7 @@ void ABalian::RMBCompleted()
 
 void ABalian::MMBClick()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"마우스 중간 클릭"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"마우스 중간 클릭"));
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.FindTarget"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
@@ -665,7 +648,7 @@ void ABalian::MMBClick()
 
 void ABalian::Dodge()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LAlt 클릭"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LAlt 클릭"));
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
 		FVector::ZeroVector,
@@ -677,7 +660,7 @@ void ABalian::Dodge()
 
 void ABalian::Roll()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt 더블 클릭"));
+	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt 더블 클릭"));
 
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
@@ -693,9 +676,17 @@ void ABalian::Ability1()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Ability 1 시도"));
 
-
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Skill.FireBurst"));
+	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+}
+
+void ABalian::CrouchPressed()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Crouch 시도"));
+
+	FGameplayTagContainer Container;
+	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Crouch"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
@@ -712,19 +703,20 @@ void ABalian::PerformInteractionCheck()
 	FVector TraceEnd{TraceStart + (GetViewRotation().Vector() * InteractionCheckDistance)};
 
 	// Player dot Controller
-	float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector());
 
 	// 플레이어 방향과 바라보는 방향이 90도 이하일 때만 Trace를 할 것.
-	if (LookDirection > 0)
+	if (float LookDirection = FVector::DotProduct(GetActorForwardVector(), GetViewRotation().Vector()); LookDirection >=
+		-.15f)
 	{
 		// DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Orange, false, 1.f, 0, 1.f);
 
 		FCollisionQueryParams QueryParams;
 		QueryParams.AddIgnoredActor(this);
-		FHitResult TraceHit;
 
-		if (GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd,
-		                                         ECollisionChannel::ECC_GameTraceChannel2, QueryParams))
+		// Trace Channel : Item 대상으로만 
+		if (FHitResult TraceHit; GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd,
+		                                                              ECollisionChannel::ECC_GameTraceChannel2,
+		                                                              QueryParams))
 		{
 			if (TraceHit.GetActor()->GetClass()->ImplementsInterface(UInteractable::StaticClass()))
 			{
@@ -756,7 +748,18 @@ void ABalian::FoundInteractable(AActor* NewInteractable)
 	InteractionData.CurrentInteractable = NewInteractable;
 	TargetInteractable = NewInteractable;
 
-	HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	if (NewInteractable->IsA(AEnemyBase::StaticClass()))
+	{
+		if (UKismetMathLibrary::Dot_VectorVector(GetActorForwardVector(), NewInteractable->GetActorForwardVector()) >=
+			0.5f)
+		{
+			HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+		}
+	}
+	else
+	{
+		HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	}
 
 	TargetInteractable->BeginFocus();
 }
@@ -828,6 +831,14 @@ void ABalian::Interact()
 	}
 }
 
+void ABalian::SpawnPreviewBalian()
+{
+	PreviewCharacter =
+		GetWorld()->SpawnActor<AInventoryPreview>(PreviewCharacterClass,
+		                                          FVector(-24.905944, 7569.893602, 120),
+		                                          FRotator::ZeroRotator);
+}
+
 void ABalian::UpdateInteractionWidget() const
 {
 	if (IsValid(TargetInteractable.GetObject()))
@@ -843,6 +854,7 @@ void ABalian::SetAnimLayer()
 	{
 		WeaponType = CurrentWeapon->GetItemData()->WeaponData.Type;
 	}
+
 	// 초기화
 	if (CurrentWeapon && CurrentWeapon->bEquipped && UnEquipMontages.Contains(WeaponType))
 	{
@@ -853,7 +865,7 @@ void ABalian::SetAnimLayer()
 		AttachToPelvis(false);
 	}
 
-	SetVisibility_Accessory(false, false, false);
+	SetVisibility_Accessory();
 
 	if (EquipMontages.Contains(CombatMode))
 	{
@@ -875,6 +887,7 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 	{
 	case EButtonType::Idle:
 		GetCharacterMovement()->bOrientRotationToMovement = false;
+		CombatMode = EWeaponType::Idle;
 		CombatMode = EWeaponType::Idle;
 		break;
 	case EButtonType::Fist:

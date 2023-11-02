@@ -8,6 +8,9 @@
 #include "TheCrusader.h"
 #include "Balian.generated.h"
 
+class UTCMovementComponent;
+class AInventoryPreview;
+class UCameraComponent;
 enum class EButtonType : uint8;
 // Forward Declaration
 class AHorse_Base;
@@ -17,12 +20,20 @@ class UInputMappingContext;
 class UTCPlayerCameraBehavior;
 class UPlayerItemSlot;
 class AItem_Weapon;
-class AItemWeapon;
 class UInventoryComponent;
 class ATC_HUD;
 class UTCInputConfig;
 struct FInputActionValue;
 enum class EEquipmentPart : uint8;
+
+UENUM(BlueprintType)
+enum class ECardinalDirection : uint8
+{
+	Forward,
+	Backward,
+	Left,
+	Right
+};
 
 USTRUCT()
 struct FInteractionData
@@ -48,7 +59,7 @@ class THECRUSADER_API ABalian : public ATCGASCharacter
 	GENERATED_BODY()
 
 public:
-	ABalian();
+	ABalian(const FObjectInitializer& ObjectInitializer);
 
 	void UpdateInteractionWidget() const;
 	bool UpdateStateByButton(EButtonType BtnType);
@@ -103,8 +114,8 @@ public:
 
 	void SetCurrentBow(AItem_Weapon_Bow* Bow);
 
-	void AttachEquipment(EEquipmentPart EquipmentPart, UItemEquipmentBase* ItemToEquip);
-	void DettachEquipment(EEquipmentPart EquipmentPart);
+	virtual void AttachEquipment(const EEquipmentPart EquipmentPart, const UItemEquipmentBase* ItemToEquip) override;
+	virtual void DetachEquipment(EEquipmentPart EquipmentPart) override;
 
 	void SetOwningHorse(AHorse_Base* HorseToRide);
 	FORCEINLINE void SetRiding(const bool bNewRiding)
@@ -133,7 +144,7 @@ protected:
 	void EquipToHand(bool bMelee);
 	void AttachToPelvis(bool bMelee);
 
-	void SetVisibility_Accessory(bool bShield, bool bSword, bool bLongSword) const;
+	void SetVisibility_Accessory() const;
 
 #pragma region Ability Function
 
@@ -160,6 +171,8 @@ protected:
 	void Dodge();
 	void Roll();
 	void Ability1();
+	void CrouchPressed();
+
 #pragma endregion InputBinding
 
 #pragma region Interact
@@ -170,13 +183,6 @@ protected:
 	void EndInteract();
 	void Interact();
 #pragma endregion Interact
-
-protected:
-	UPROPERTY(BlueprintReadOnly)
-	ATC_HUD* HUD;
-
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	AHorse_Base* OwningHorse;
 
 #pragma region Inventory & Interaction Properties
 
@@ -201,21 +207,9 @@ protected:
 #pragma endregion Inventory & Interaction Properties
 
 private:
-#pragma region Equipment Accessory
+	void SpawnPreviewBalian();
 
-	UPROPERTY(EditDefaultsOnly, Category = "Armour")
-	UStaticMeshComponent* ShieldMesh;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Armour")
-	UStaticMeshComponent* LongswordZip;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Armour")
-	UStaticMeshComponent* SwordZip;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Armour", meta = (AllowPrivateAccess = true))
-	UStaticMeshComponent* Quiver;
-#pragma endregion Equipment Accessory
-
+private:
 #pragma region Animation (Montage, Layers)
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
@@ -246,17 +240,38 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	ECardinalDirection InputDirection;
+
 #pragma endregion Input & Action
+
+#pragma region FLAGS
+
+	bool bInventory = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
 	bool bRiding = false;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
-	bool bIsTargeting = false;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, BlueprintSetter=SetIsSprinting, Meta=(AllowPrivateAccess="true"))
 	bool bIsSprinting = false;
 
+#pragma endregion FLAGS
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Movement, meta = (AllowPrivateAccess = true))
+	UTCMovementComponent* TCMovementComponent;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	ATC_HUD* HUD;
+
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	AHorse_Base* OwningHorse;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AInventoryPreview> PreviewCharacterClass;
+
+	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	AInventoryPreview* PreviewCharacter;
+	
 	UPROPERTY(EditDefaultsOnly, Meta = (AllowPrivateAccess = "true"))
 	float DesiredSprintSpeed;
 

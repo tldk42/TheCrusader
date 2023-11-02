@@ -4,7 +4,6 @@
 #include "Character/Movement/TCMovementComponent.h"
 
 #include "AbilitySystemComponent.h"
-#include "Character/TCCharacterBase.h"
 #include "Character/TCGASCharacter.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
@@ -19,6 +18,7 @@ namespace TheCrusader
 
 UTCMovementComponent::UTCMovementComponent()
 {
+	NavAgentProps.bCanCrouch = true;
 }
 
 const FTCGroundInfo& UTCMovementComponent::GetGroundInfo()
@@ -84,6 +84,11 @@ void UTCMovementComponent::StartAiming()
 void UTCMovementComponent::StopAiming()
 {
 	RequestToStartADS = false;
+}
+
+void UTCMovementComponent::CrouchPressed()
+{
+	bWantsToCrouch = !bWantsToCrouch;
 }
 
 void UTCMovementComponent::PhysicsRotation(float DeltaTime)

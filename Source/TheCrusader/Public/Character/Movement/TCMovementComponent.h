@@ -48,6 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Aiming")
 	void StopAiming();
 
+	UFUNCTION(BlueprintCallable)
+	void CrouchPressed();
+
 #pragma region UCharacterMovementComponent Interface
 	virtual void PhysicsRotation(float DeltaTime) override;
 	virtual float GetMaxSpeed() const override;

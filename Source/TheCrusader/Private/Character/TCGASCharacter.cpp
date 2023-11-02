@@ -4,10 +4,8 @@
 #include "Character/TCGASCharacter.h"
 
 #include <IVectorChangedEventArgs.h>
-
 #include "MotionWarpingComponent.h"
 #include "TheCrusader.h"
-#include "Character/EnemyBase.h"
 #include "Component/Physics/TCPhysicalAnimComp.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -18,9 +16,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
-
-// Sets default values
-ATCGASCharacter::ATCGASCharacter()
+ATCGASCharacter::ATCGASCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	HitDirectionFrontTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Front"));
 	HitDirectionBackTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Back"));
@@ -28,54 +25,140 @@ ATCGASCharacter::ATCGASCharacter()
 	HitDirectionLeftTag = FGameplayTag::RequestGameplayTag(FName("Effect.HitReact.Left"));
 	DeadTag = FGameplayTag::RequestGameplayTag(FName("State.Dead"));
 
+	PhysicalAnimComponent = CreateDefaultSubobject<UTCPhysicalAnimComp>("PhysicsAnimation");
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>("MotionWarpingComponent");
 	ForwardArrow = CreateDefaultSubobject<UArrowComponent>("ForwardArrow");
 	BackArrow = CreateDefaultSubobject<UArrowComponent>("BackArrow");
 	LeftArrow = CreateDefaultSubobject<UArrowComponent>("LeftArrow");
 	RightArrow = CreateDefaultSubobject<UArrowComponent>("RightArrow");
+	HandArrow = CreateDefaultSubobject<UStaticMeshComponent>("HandArrowMesh");
+	HandArrow->SetVisibility(false);
+
 	ForwardArrow->SetupAttachment(GetCapsuleComponent());
 	BackArrow->SetupAttachment(GetCapsuleComponent());
 	LeftArrow->SetupAttachment(GetCapsuleComponent());
 	RightArrow->SetupAttachment(GetCapsuleComponent());
-
-	PhysicalAnimComp = CreateDefaultSubobject<UTCPhysicalAnimComp>("PhysicsAnimation");
-	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>("MotionWarpingComponent");
+	HandArrow->SetupAttachment(GetMesh(), "arrow");
 
 	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
 }
 
-void ATCGASCharacter::JumpSectionForCombo()
+#pragma region Ability System
+
+UAbilitySystemComponent* ATCGASCharacter::GetAbilitySystemComponent() const
 {
-	if (IsValid(JumpSectionNotify))
+	return AbilitySystemComponent;
+}
+
+void ATCGASCharacter::InitializeAttributes()
+{
+	if (!IsValid(AbilitySystemComponent))
 	{
-		if (bEnableComboPeriod)
-		{
-			const FName NextSectionName = JumpSectionNotify->JumpSections[UKismetMathLibrary::RandomInteger(
-				JumpSectionNotify->JumpSections.Num())];
-			CurrentSectionName = NextSectionName;
+		return;
+	}
 
-			if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
-			{
-				if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
-				{
-					const FName Sections[2] = {"LongD-1", "LongD-2"};
+	if (!DefaultAttributes)
+	{
+		UE_LOG(LogTemp, Error, TEXT("%s() Missing DefaultAttributes for %s. Please fill in the character's Blueprint."),
+		       *FString(__FUNCTION__), *GetName());
+		return;
+	}
 
-					CurrentSectionName = Sections[UKismetMathLibrary::RandomInteger(2)];
-				}
-			}
+	// Can run on Server and Client
+	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
 
-			ActivateAbilitiesByWeaponType(CombatMode, true);
-
-			bEnableComboPeriod = false;
-
-			// UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-			// const FName CurrentMontageName = AnimInstance->Montage_GetCurrentSection();
-			// const UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
-			// AnimInstance->Montage_SetNextSection(CurrentMontageName, NextSectionName, CurrentMontage);
-			// AnimInstance->Montage_JumpToSection(NextSectionName, CurrentMontage);
-		}
+	if (const FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(
+		DefaultAttributes, 1, EffectContext); NewHandle.IsValid())
+	{
+		FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
+			*NewHandle.Data.Get());
 	}
 }
+
+void ATCGASCharacter::AddStartupEffects()
+{
+	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || AbilitySystemComponent->
+		bStartupEffectsApplied)
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
+	EffectContext.AddSourceObject(this);
+
+	for (const TSubclassOf<UGameplayEffect> GameplayEffect : StartupEffects)
+	{
+		if (FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(
+			GameplayEffect, 1, EffectContext); NewHandle.IsValid())
+		{
+			FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
+				*NewHandle.Data.Get(), AbilitySystemComponent);
+		}
+	}
+
+	AbilitySystemComponent->bStartupEffectsApplied = true;
+}
+
+void ATCGASCharacter::AddCharacterAbilities()
+{
+	// Grant abilities, but only on the server	
+	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || AbilitySystemComponent->
+		bCharacterAbilitiesGiven)
+	{
+		return;
+	}
+
+	for (TSubclassOf<UTCGameplayAbility>& StartupAbility : CharacterDefaultAbilities)
+	{
+		AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(StartupAbility, 1,
+			                     1, this));
+	}
+
+	for (const auto& MeleeAbility : MeleeAbilityMap)
+	{
+		FGameplayAbilitySpecHandle Spec = AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(
+				MeleeAbility.Value, 1,
+				1, this));
+		MeleeAbilitySpec.Add(MeleeAbility.Key, Spec);
+	}
+
+	AbilitySystemComponent->bCharacterAbilitiesGiven = true;
+}
+
+void ATCGASCharacter::RemoveCharacterAbilities()
+{
+	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || !AbilitySystemComponent->
+		bCharacterAbilitiesGiven)
+	{
+		return;
+	}
+
+	// Remove any abilities added from a previous call. This checks to make sure the ability is in the startup 'CharacterAbilities' array.
+	TArray<FGameplayAbilitySpecHandle> AbilitiesToRemove;
+	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
+	{
+		if ((Spec.SourceObject == this) && CharacterDefaultAbilities.Contains(Spec.Ability->GetClass()))
+		{
+			AbilitiesToRemove.Add(Spec.Handle);
+		}
+	}
+
+	// Do in two passes so the removal happens after we have the full list
+	for (int32 i = 0; i < AbilitiesToRemove.Num(); i++)
+	{
+		AbilitySystemComponent->ClearAbility(AbilitiesToRemove[i]);
+	}
+
+	AbilitySystemComponent->bCharacterAbilitiesGiven = false;
+}
+
+#pragma endregion Ability System
+
+#pragma region Getter
 
 bool ATCGASCharacter::IsAlive() const
 {
@@ -122,37 +205,35 @@ float ATCGASCharacter::GetMaxStamina() const
 	return 0.0f;
 }
 
+float ATCGASCharacter::GetPower() const
+{
+	if (IsValid(AttributeSetBase))
+	{
+		return AttributeSetBase->GetAttackPower();
+	}
+
+	return 0.0f;
+}
+
+float ATCGASCharacter::GetArmour() const
+{
+	if (IsValid(AttributeSetBase))
+	{
+		return AttributeSetBase->GetDefensePower();
+	}
+
+	return 0.0f;
+}
+
 AItem_Weapon_Bow* ATCGASCharacter::GetCurrentBow() const
 {
 	return CurrentBow;
 }
 
-ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint)
-{
-	const FVector& ActorLocation = GetActorLocation();
-
-	const float DistanceToFrontBackPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorRightVector());
-	const float DistanceToRightLeftPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorForwardVector());
-
-	if (FMath::Abs(DistanceToFrontBackPlane) <= FMath::Abs(DistanceToRightLeftPlane))
-	{
-		if (DistanceToRightLeftPlane >= 0)
-		{
-			return ETCHitReactDirection::Front;
-		}
-		return ETCHitReactDirection::Back;
-	}
-	if (DistanceToFrontBackPlane >= 0)
-	{
-		return ETCHitReactDirection::Right;
-	}
-	return ETCHitReactDirection::Left;
-}
-
-UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation, bool& IsTooFar)
+UArrowComponent* ATCGASCharacter::GetWarpingInfo(const FVector HitLocation, bool& IsTooFar) const
 {
 	int8 Index = INT8_MAX;
-	float ClosetDistance = 300.f;
+	float ClosetDistance = 200.f;
 	const float Forward = UKismetMathLibrary::Vector_Distance(HitLocation, ForwardArrow->GetComponentLocation());
 	const float Back = UKismetMathLibrary::Vector_Distance(HitLocation, BackArrow->GetComponentLocation());
 	const float Left = UKismetMathLibrary::Vector_Distance(HitLocation, LeftArrow->GetComponentLocation());
@@ -177,7 +258,7 @@ UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation, bool& IsTo
 		Index = 3;
 	}
 
-	if (ClosetDistance >= 300.f)
+	if (ClosetDistance >= 200.f)
 	{
 		IsTooFar = true;
 	}
@@ -197,7 +278,31 @@ UArrowComponent* ATCGASCharacter::GetWarpingInfo(FVector HitLocation, bool& IsTo
 	}
 }
 
-void ATCGASCharacter::PlayHitReact(FGameplayTag HitDirection, AActor* DamageCauser)
+ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint) const
+{
+	const FVector& ActorLocation = GetActorLocation();
+
+	const float DistanceToFrontBackPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorRightVector());
+	const float DistanceToRightLeftPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorForwardVector());
+
+	if (FMath::Abs(DistanceToFrontBackPlane) <= FMath::Abs(DistanceToRightLeftPlane))
+	{
+		if (DistanceToRightLeftPlane >= 0)
+		{
+			return ETCHitReactDirection::Front;
+		}
+		return ETCHitReactDirection::Back;
+	}
+	if (DistanceToFrontBackPlane >= 0)
+	{
+		return ETCHitReactDirection::Right;
+	}
+	return ETCHitReactDirection::Left;
+}
+
+#pragma endregion Getter
+
+void ATCGASCharacter::PlayHitReact(const FGameplayTag HitDirection, AActor* DamageCauser)
 {
 	if (IsAlive())
 	{
@@ -220,85 +325,7 @@ void ATCGASCharacter::PlayHitReact(FGameplayTag HitDirection, AActor* DamageCaus
 	}
 }
 
-UAbilitySystemComponent* ATCGASCharacter::GetAbilitySystemComponent() const
-{
-	return AbilitySystemComponent;
-}
-
-void ATCGASCharacter::RemoveCharacterAbilities()
-{
-	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || !AbilitySystemComponent->
-		bCharacterAbilitiesGiven)
-	{
-		return;
-	}
-
-	// Remove any abilities added from a previous call. This checks to make sure the ability is in the startup 'CharacterAbilities' array.
-	TArray<FGameplayAbilitySpecHandle> AbilitiesToRemove;
-	for (const FGameplayAbilitySpec& Spec : AbilitySystemComponent->GetActivatableAbilities())
-	{
-		if ((Spec.SourceObject == this) && CharacterDefaultAbilities.Contains(Spec.Ability->GetClass()))
-		{
-			AbilitiesToRemove.Add(Spec.Handle);
-		}
-	}
-
-	// Do in two passes so the removal happens after we have the full list
-	for (int32 i = 0; i < AbilitiesToRemove.Num(); i++)
-	{
-		AbilitySystemComponent->ClearAbility(AbilitiesToRemove[i]);
-	}
-
-	AbilitySystemComponent->bCharacterAbilitiesGiven = false;
-}
-
-void ATCGASCharacter::UpdateHealthBar() const
-{
-}
-
-void ATCGASCharacter::Die()
-{
-	RemoveCharacterAbilities();
-
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	GetCharacterMovement()->GravityScale = 0.f;
-	GetCharacterMovement()->Velocity = FVector::Zero();
-
-	if (IsValid(AbilitySystemComponent))
-	{
-		AbilitySystemComponent->CancelAllAbilities();
-
-		FGameplayTagContainer EffectTagToRemove;
-		EffectTagToRemove.AddTag(EffectRemoveOnDeathTag);
-		int32 NumEffectsRemoved = AbilitySystemComponent->RemoveActiveEffectsWithTags(EffectTagToRemove);
-
-		AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
-	}
-
-	if (TargetCharacter && TargetCharacter->GetTargetingCharacter() == this)
-	{
-		TargetCharacter->SetTargetingCharacter(nullptr);
-	}
-
-
-	if (DeadMontage)
-	{
-		PlayAnimMontage(DeadMontage);
-		FTimerHandle TimerHandle;
-
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
-		{
-			Destroy();
-		}, 10.f, false);
-	}
-
-	// FinishDying();
-}
-
-void ATCGASCharacter::FinishDying()
-{
-	Destroy();
-}
+#pragma region Combat
 
 void ATCGASCharacter::DoMeleeAttack()
 {
@@ -355,95 +382,97 @@ void ATCGASCharacter::DoShoot()
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
+void ATCGASCharacter::JumpSectionForCombo()
+{
+	// Check: 노티파이 구간안 그리고 콤보입력이 들어왔는지
+	if (IsValid(JumpSectionNotify) && bEnableComboPeriod)
+	{
+		// 다음 섹션 후보 중에 랜덤으로 하나를 뽑는다. 
+		const FName NextSectionName = JumpSectionNotify->JumpSections[FMath::RandRange(
+			0, JumpSectionNotify->JumpSections.Num() - 1)];
+		CurrentSectionName = NextSectionName;
+
+		// 타겟과의 거리가 너무 멀다면 특정 공격 모션(멀리서부터 다가오는)으로 다음 섹션을 설정한다.
+		if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
+		{
+			if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
+			{
+				const FName Sections[2] = {"LongD-1", "LongD-2"};
+
+				CurrentSectionName = Sections[UKismetMathLibrary::RandomInteger(2)];
+			}
+		}
+
+		// Ability (공격을 시도한다.)
+		ActivateAbilitiesByWeaponType(CombatMode, true);
+
+		// Reset: 콤보 flag 초기화
+		bEnableComboPeriod = false;
+	}
+}
+
 bool ATCGASCharacter::ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation)
 {
-	const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode);
-
-	if (FoundHandle && AbilitySystemComponent)
+	if (const FGameplayAbilitySpecHandle* FoundHandle = MeleeAbilitySpec.Find(Mode); FoundHandle &&
+		AbilitySystemComponent)
 	{
 		return AbilitySystemComponent->TryActivateAbility(*FoundHandle, bAllowRemoteActivation);
 	}
 	return false;
 }
 
-void ATCGASCharacter::AddCharacterAbilities()
+#pragma endregion Combat
+
+#pragma region Attribute Changes
+
+void ATCGASCharacter::UpdateHealthBar() const
 {
-	// Grant abilities, but only on the server	
-	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || AbilitySystemComponent->
-		bCharacterAbilitiesGiven)
-	{
-		return;
-	}
-
-	for (TSubclassOf<UTCGameplayAbility>& StartupAbility : CharacterDefaultAbilities)
-	{
-		AbilitySystemComponent->GiveAbility(
-			FGameplayAbilitySpec(StartupAbility, 1,
-			                     1, this));
-	}
-
-	for (const auto& MeleeAbility : MeleeAbilityMap)
-	{
-		FGameplayAbilitySpecHandle Spec = AbilitySystemComponent->GiveAbility(
-			FGameplayAbilitySpec(
-				MeleeAbility.Value, 1,
-				1, this));
-		MeleeAbilitySpec.Add(MeleeAbility.Key, Spec);
-	}
-
-	AbilitySystemComponent->bCharacterAbilitiesGiven = true;
 }
 
-void ATCGASCharacter::InitializeAttributes()
+void ATCGASCharacter::Die()
 {
-	if (!IsValid(AbilitySystemComponent))
+	RemoveCharacterAbilities();
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetCharacterMovement()->GravityScale = 0.98f;
+	GetCharacterMovement()->Velocity = FVector::Zero();
+
+	if (IsValid(AbilitySystemComponent))
 	{
-		return;
+		AbilitySystemComponent->CancelAllAbilities();
+
+		FGameplayTagContainer EffectTagToRemove;
+		EffectTagToRemove.AddTag(EffectRemoveOnDeathTag);
+		int32 NumEffectsRemoved = AbilitySystemComponent->RemoveActiveEffectsWithTags(EffectTagToRemove);
+
+		AbilitySystemComponent->AddLooseGameplayTag(DeadTag);
 	}
 
-	if (!DefaultAttributes)
+	if (TargetCharacter && TargetCharacter->GetTargetingCharacter() == this)
 	{
-		UE_LOG(LogTemp, Error, TEXT("%s() Missing DefaultAttributes for %s. Please fill in the character's Blueprint."),
-		       *FString(__FUNCTION__), *GetName());
-		return;
+		TargetCharacter->SetTargetingCharacter(nullptr);
 	}
 
-	// Can run on Server and Client
-	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
-	EffectContext.AddSourceObject(this);
+	FTimerHandle TimerHandle;
 
-	FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(
-		DefaultAttributes, 1, EffectContext);
-	if (NewHandle.IsValid())
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, [this]()
 	{
-		FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(
-			*NewHandle.Data.Get());
-	}
+		Destroy();
+	}, 10.f, false);
+
+	// if (DeadMontage)
+	// {
+	// 	PlayAnimMontage(DeadMontage);
+	// 	// GetMesh()->SetSimulatePhysics(true);
+	// 	PhysicalAnimComponent->TogglePhyxsAnimation();
+	// }
+
+	// FinishDying();
 }
 
-void ATCGASCharacter::AddStartupEffects()
+void ATCGASCharacter::FinishDying()
 {
-	if (GetLocalRole() != ROLE_Authority || !IsValid(AbilitySystemComponent) || AbilitySystemComponent->
-		bStartupEffectsApplied)
-	{
-		return;
-	}
-
-	FGameplayEffectContextHandle EffectContext = AbilitySystemComponent->MakeEffectContext();
-	EffectContext.AddSourceObject(this);
-
-	for (TSubclassOf<UGameplayEffect> GameplayEffect : StartupEffects)
-	{
-		FGameplayEffectSpecHandle NewHandle = AbilitySystemComponent->MakeOutgoingSpec(
-			GameplayEffect, 1, EffectContext);
-		if (NewHandle.IsValid())
-		{
-			FActiveGameplayEffectHandle ActiveGEHandle = AbilitySystemComponent->ApplyGameplayEffectSpecToTarget(
-				*NewHandle.Data.Get(), AbilitySystemComponent);
-		}
-	}
-
-	AbilitySystemComponent->bStartupEffectsApplied = true;
+	Destroy();
 }
 
 void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
@@ -451,14 +480,9 @@ void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, c
 {
 	UE_LOG(LogTemp, Warning, TEXT("DAMAGED"));
 
-	// if (IsValid(DamageCauser) && IsA(AEnemyBase::StaticClass()))
-	// {
-	// 	SetActorRotation(
-	// 		UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
-	// }
 	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
 
-	PhysicalAnimComp->HitReaction(HitInfo);
+	PhysicalAnimComponent->HitReaction(HitInfo);
 	if (!TargetCharacter)
 	{
 		TargetCharacter = InstigatorCharacter;
@@ -476,7 +500,7 @@ void ATCGASCharacter::OnHealthChanged(float DeltaValue, const FGameplayTagContai
 }
 
 
-void ATCGASCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo,
+void ATCGASCharacter::HandleDamage(const float DamageAmount, const FHitResult& HitInfo,
                                    const FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,
                                    AActor* DamageCauser)
 {
@@ -487,3 +511,5 @@ void ATCGASCharacter::HandleHealthChanged(float DeltaValue, const FGameplayTagCo
 {
 	OnHealthChanged(DeltaValue, EventTags);
 }
+
+#pragma endregion Attribute Changes

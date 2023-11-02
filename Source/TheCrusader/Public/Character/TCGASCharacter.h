@@ -38,7 +38,7 @@ class THECRUSADER_API ATCGASCharacter : public ATCCharacterBase, public IAbility
 	GENERATED_BODY()
 
 public:
-	ATCGASCharacter();
+	ATCGASCharacter(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(BlueprintAssignable)
 	FHitReactDelegate ShowHitReact;
@@ -65,13 +65,24 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Crusader|Attribute")
 	float GetMaxStamina() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Crusader|Attribute")
+	float GetPower() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Crusader|Attribute")
+	float GetArmour() const;
+
 	AItem_Weapon_Bow* GetCurrentBow() const;
 
-	UFUNCTION(BlueprintCallable)
-	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint);
+	FORCEINLINE float GetAimingDuration() const
+	{
+		return AimingDuration;
+	}
 
 	UFUNCTION(BlueprintCallable)
-	UArrowComponent* GetWarpingInfo(FVector HitLocation, bool& IsTooFar);
+	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint) const;
+
+	UFUNCTION(BlueprintCallable)
+	UArrowComponent* GetWarpingInfo(FVector HitLocation, bool& IsTooFar) const;
 
 	UFUNCTION(BlueprintCallable)
 	virtual void PlayHitReact(FGameplayTag HitDirection, AActor* DamageCauser);
@@ -81,10 +92,13 @@ public:
 
 	FORCEINLINE ATCGASCharacter* GetTargetingCharacter() const { return TargetCharacter ? TargetCharacter : nullptr; }
 
+	FORCEINLINE bool IsTargeting() const { return bIsTargeting; }
+
 #pragma endregion GETTER
 
 #pragma region SETTER
 
+	FORCEINLINE void InitAimingDuration() { AimingDuration = 0.f; }
 	FORCEINLINE void SetComboPeriod(const bool Value) { bEnableComboPeriod = Value; }
 	FORCEINLINE void SetJumpSectionNotify(UJumpSection* JumpSection) { JumpSectionNotify = JumpSection; }
 	FORCEINLINE void SetTargetingCharacter(ATCGASCharacter* Target) { TargetCharacter = Target; }
@@ -116,6 +130,7 @@ protected:
 	virtual void InitializeAttributes();
 	virtual void AddStartupEffects();
 
+#pragma region Handle Damage & Health
 	UFUNCTION(BlueprintCallable)
 	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo,
 	                       const struct FGameplayTagContainer& DamageTags,
@@ -135,6 +150,7 @@ protected:
 	                          const struct FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,
 	                          AActor* DamageCauser);
 	virtual void HandleHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+#pragma endregion Handle Damage & Health
 
 protected:
 	UPROPERTY()
@@ -151,8 +167,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
 	UArrowComponent* RightArrow;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	UStaticMeshComponent* HandArrow;
+
 	UPROPERTY(BlueprintReadOnly)
-	UTCPhysicalAnimComp* PhysicalAnimComp;
+	UTCPhysicalAnimComp* PhysicalAnimComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | MotionWarping")
 	class UMotionWarpingComponent* MotionWarpingComponent;
@@ -183,11 +202,15 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Crusader|Abilities")
 	TSubclassOf<UGameplayEffect> HUDMode;
 
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	UAnimMontage* DeadMontage;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader|Melee")
 	bool bEnableComboPeriod;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	bool bIsTargeting = false;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader|Melee")
 	UJumpSection* JumpSectionNotify;
 
@@ -204,6 +227,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Character | Montage")
 	FName CurrentSectionName;
+
+	UPROPERTY(BlueprintReadWrite)
+	float AimingDuration = 0.f;
 
 	friend UTCAttributeSet;
 };
