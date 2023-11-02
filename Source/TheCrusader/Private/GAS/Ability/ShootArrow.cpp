@@ -4,12 +4,11 @@
 #include "GAS/Ability/ShootArrow.h"
 
 #include "AbilitySystemComponent.h"
-#include "Camera/CameraComponent.h"
 #include "Character/TCGASCharacter.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "GAS/TCAT_PlayMontageAndWaitForEvent.h"
 #include "Item/Weapon/Item_Weapon_Bow.h"
 #include "Item/Weapon/Arrow/TCProjectile.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 
 UShootArrow::UShootArrow(): IdleShootMontage(nullptr), AimShootMontage(nullptr)
@@ -33,13 +32,11 @@ void UShootArrow::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const
 	}
 
 	UAnimMontage* MontageToPlay = IdleShootMontage;
-	// if (GetAbilitySystemComponentFromActorInfo()->HasMatchingGameplayTag(
-	// 		FGameplayTag::RequestGameplayTag(FName("State.AimDownSights"))) &&
-	// 	!GetAbilitySystemComponentFromActorInfo()->HasMatchingGameplayTag(
-	// 		FGameplayTag::RequestGameplayTag(FName("State.AimDownSights.Removal"))))
-	// {
-	// 	MontageToPlay = AimShootMontage;
-	// }
+	if (GetAbilitySystemComponentFromActorInfo()->HasMatchingGameplayTag(
+		FGameplayTag::RequestGameplayTag(FName("State.Aiming"))))
+	{
+		MontageToPlay = AimShootMontage;
+	}
 
 	// Play fire montage and wait for event telling us to spawn the projectile
 	UTCAT_PlayMontageAndWaitForEvent* Task = UTCAT_PlayMontageAndWaitForEvent::PlayMontageAndWaitForEvent(
@@ -84,30 +81,68 @@ void UShootArrow::EventReceived(FGameplayTag EventTag, FGameplayEventData EventD
 			EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, true);
 		}
 
-		FVector Start = Hero->GetCurrentBow()->GetBowComponent()->GetSocketLocation(FName("Muzzle"));
-		FVector End = Hero->GetCameraBoom()->GetComponentLocation() + Hero->GetFollowCamera()->GetForwardVector() *
-			Range;
-		FRotator Rotation = UKismetMathLibrary::FindLookAtRotation(Start, End);
+		// FVector Start = Hero->GetCurrentBow()->GetBowComponent()->GetSocketLocation(FName("Muzzle"));
+		// FVector End = Hero->GetCameraBoom()->GetComponentLocation() + Hero->GetFollowCamera()->GetForwardVector() *
+		// 	Range;
+		// FRotator Rotation = UKismetMathLibrary::FindLookAtRotation(Start, End);
+
+		const float MaxRange = FMath::RandRange(1.2f, 1.6f);
+		float DamageMultiplier = FMath::Clamp(Hero->GetAimingDuration(), 1.f, MaxRange);
 
 		FGameplayEffectSpecHandle DamageEffectSpecHandle = MakeOutgoingGameplayEffectSpec(
 			DamageGameplayEffect, GetAbilityLevel());
 
 		// Pass the damage to the Damage Execution Calculation through a SetByCaller value on the GameplayEffectSpec
 		DamageEffectSpecHandle.Data.Get()->SetSetByCallerMagnitude(
-			FGameplayTag::RequestGameplayTag(FName("Data.Damage")), Damage);
+			FGameplayTag::RequestGameplayTag(FName("Data.Damage")), Damage * DamageMultiplier);
 
-		FTransform MuzzleTransform = Hero->GetCurrentBow()->GetBowComponent()->GetSocketTransform(FName("Muzzle"));
+		Hero->InitAimingDuration();
+
+		FVector MuzzleLocation = Hero->GetCurrentBow()->GetBowComponent()->GetSocketLocation(FName("Muzzle"));
 		// MuzzleTransform.SetRotation(MuzzleTransform.GetRotation().GetForwardVector().ToOrientationQuat());
-		MuzzleTransform.SetScale3D(FVector(1.0f));
+		// MuzzleTransform.SetScale3D(FVector(1.0f));
 
-		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		if (APlayerCameraManager* CameraManager = UGameplayStatics::GetPlayerCameraManager(GetWorld(), 0))
+		{
+			USceneComponent* CameraRoot = CameraManager->GetRootComponent();
 
-		ATCProjectile* Projectile = GetWorld()->SpawnActorDeferred<ATCProjectile>(
-			ProjectileClass, MuzzleTransform, GetOwningActorFromActorInfo(),
-			Hero, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-		Projectile->DamageEffectSpecHandle = DamageEffectSpecHandle;
-		Projectile->Range = Range;
-		Projectile->FinishSpawning(MuzzleTransform);
+
+			FHitResult HitResult;
+			GetWorld()->LineTraceSingleByChannel(
+				HitResult,
+				CameraRoot->GetComponentLocation(),
+				CameraRoot->GetComponentLocation() + CameraRoot->GetForwardVector() * 20000.f,
+				ECC_Visibility);
+
+			FVector End = HitResult.bBlockingHit ? HitResult.ImpactPoint : HitResult.TraceEnd;
+
+			GetWorld()->LineTraceSingleByChannel(HitResult, MuzzleLocation, End, ECC_Visibility);
+			// DrawDebugLine(GetWorld(), MuzzleLocation,
+			//               HitResult.bBlockingHit
+			// 	              ? HitResult.ImpactPoint
+			// 	              : HitResult.TraceEnd,
+			//               FColor::Red, false, 3.f, 0, 1.f);
+
+			FVector Temp = HitResult.bBlockingHit
+				               ? HitResult.ImpactPoint
+				               : HitResult.TraceEnd;
+
+			FTransform ProjectileTransform(
+				UKismetMathLibrary::MakeRotFromX(
+					Temp - MuzzleLocation),
+				MuzzleLocation,
+				FVector::One());
+
+
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ATCProjectile* Projectile = GetWorld()->SpawnActorDeferred<ATCProjectile>(
+				ProjectileClass, ProjectileTransform, GetOwningActorFromActorInfo(),
+				Hero, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+			Projectile->DamageEffectSpecHandle = DamageEffectSpecHandle;
+			Projectile->Range = Range;
+			Projectile->FinishSpawning(ProjectileTransform);
+		}
 	}
 }
