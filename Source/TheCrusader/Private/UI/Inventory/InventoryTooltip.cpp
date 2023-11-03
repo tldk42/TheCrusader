@@ -6,25 +6,40 @@
 #include "Components/TextBlock.h"
 #include "Data/ItemDataStructs.h"
 #include "Item/Data/ItemBase.h"
+#include "Item/Data/ItemWeaponBase.h"
 #include "UI/Inventory/InventoryItemSlot.h"
 
 void UInventoryTooltip::UpdateToolTip()
 {
 	if (InventorySlotBeingHovered)
 	{
-		const UItemBase* ItemBeingHovered = InventorySlotBeingHovered->GetItemReference();
-		if (ItemBeingHovered)
+		if (const UItemBase* ItemBeingHovered = InventorySlotBeingHovered->GetItemReference())
 		{
 			switch (ItemBeingHovered->ItemType)
 			{
-			case EItemType::Armor:
-				break;
-			case EItemType::Weapon:
-				ItemType->SetText(FText::FromString("Weapon"));
-				UsageText->SetVisibility(ESlateVisibility::Collapsed);
-				break;
-			case EItemType::Shield:
-				break;
+				{
+				case EItemType::Armor:
+				case EItemType::Shield:
+					ItemType->SetText(UEnum::GetDisplayValueAsText(ItemBeingHovered->ItemType));
+					UsageText->SetVisibility(ESlateVisibility::Collapsed);
+					MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
+					StackWeight->SetVisibility(ESlateVisibility::Collapsed);
+					break;
+				}
+				{
+				case EItemType::Weapon:
+					const UItemWeaponBase* Weapon = Cast<UItemWeaponBase>(ItemBeingHovered);
+					ItemType->SetText(UEnum::GetDisplayValueAsText(Weapon->WeaponData.Type));
+					Power->SetText(FText::Format(
+						FText::FromString(
+							L"힘: {0}"), FText::AsNumber(Weapon->WeaponData.BaseDamage)));
+					UsageText->SetVisibility(ESlateVisibility::Collapsed);
+					ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
+					MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
+					Armour->SetVisibility(ESlateVisibility::Collapsed);
+					StackWeight->SetVisibility(ESlateVisibility::Collapsed);
+					break;
+				}
 			case EItemType::Spell:
 				break;
 			case EItemType::Consumable:
@@ -46,10 +61,14 @@ void UInventoryTooltip::UpdateToolTip()
 			}
 
 			ItemName->SetText(ItemBeingHovered->TextData.Name);
-			DamageValue->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.DamageValue));
+			DamageValue->SetText(FText::Format(
+				FText::FromString(
+					L"손상도: {0}"), FText::AsNumber(ItemBeingHovered->ItemStatistics.DamageValue)));
 			UsageText->SetText(ItemBeingHovered->TextData.UsageText);
 			ItemDescription->SetText(ItemBeingHovered->TextData.Description);
-			SellValue->SetText(FText::AsNumber(ItemBeingHovered->ItemStatistics.SellValue));
+			SellValue->SetText(FText::Format(
+				FText::FromString(
+					L"판매가: {0}"), FText::AsNumber(ItemBeingHovered->ItemStatistics.SellValue)));
 			StackWeight->SetText(FText::AsNumber(ItemBeingHovered->GetItemStackWeight()));
 
 			if (ItemBeingHovered->NumericData.bIsStackable)

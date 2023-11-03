@@ -20,10 +20,10 @@ class THECRUSADER_API UPlayerInventoryPanel : public UInventoryPanel
 
 public:
 	virtual void RefreshInventory() override;
-	
+
 protected:
 	virtual void NativeOnInitialized() override;
-	
+
 public:
 	UPROPERTY()
 	ABalian* PlayerRef;
@@ -45,4 +45,11 @@ protected:
 	UPlayerItemSlot* ShieldSlot;
 	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
 	UPlayerItemSlot* BowSlot;
+
+	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
+	UTextBlock* PowerText;
+	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
+	UTextBlock* ArmourText;
+	UPROPERTY(EditDefaultsOnly, meta = (BindWidget))
+	UTextBlock* SkillText;
 };

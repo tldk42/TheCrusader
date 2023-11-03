@@ -6,6 +6,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "TheCrusaderGameMode.generated.h"
 
+class ABalian;
+
 UCLASS(minimalapi)
 class ATheCrusaderGameMode : public AGameModeBase
 {
@@ -13,7 +15,11 @@ class ATheCrusaderGameMode : public AGameModeBase
 
 public:
 	ATheCrusaderGameMode();
+
+protected:
+	virtual void BeginPlay() override;
+
+public:
+	UPROPERTY(BlueprintReadOnly)
+	ABalian* PlayerCharacterRef;
 };
-
-
-

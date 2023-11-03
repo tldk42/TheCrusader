@@ -7,6 +7,7 @@
 #include "Interfaces/HealthHUD.h"
 #include "TC_HUD.generated.h"
 
+class ABalian;
 enum class EWeaponType : uint8;
 class UPlayerInGameUI;
 class URadialMenu;
@@ -84,4 +85,7 @@ protected:
 
 	UPROPERTY()
 	UInteractionWidget* InteractionWidget;
+
+	UPROPERTY()
+	ABalian* PlayerPawn;
 };

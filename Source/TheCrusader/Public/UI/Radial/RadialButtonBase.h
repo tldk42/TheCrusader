@@ -27,6 +27,13 @@ class THECRUSADER_API URadialButtonBase : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	void LockButton();
+	void UnLockButton();
+	
+protected:
+	virtual void NativePreConstruct() override;
+
+public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "State")
 	bool bLocked;
 
@@ -36,9 +43,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "State")
 	EButtonType ButtonType;
 
-protected:
-	virtual void NativePreConstruct() override;
-
 private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialButton",
 		meta = (AllowPrivateAccess = true, BindWidget))
@@ -46,6 +50,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialButton",
 		meta = (AllowPrivateAccess = true))
 	class UTexture2D* ImageTexture;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialButton",
+		meta = (AllowPrivateAccess = true))
+	class UTexture2D* LockImageTexture;
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "RadialButton",
 		meta = (AllowPrivateAccess = true, BindWidget))
 	class UButton* Button;

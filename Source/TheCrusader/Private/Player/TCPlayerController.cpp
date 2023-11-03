@@ -9,7 +9,6 @@
 #include "UI/TC_HUD.h"
 
 
-
 void ATCPlayerController::ToggleMenu()
 {
 	HUD->ToggleMenu();
@@ -35,7 +34,7 @@ void ATCPlayerController::SetupInputComponent()
 
 	if (UTCInputComponent* EnhancedInputComponent = CastChecked<UTCInputComponent>(InputComponent))
 	{
-		EnhancedInputComponent->BindAction(RadialMenuAction, ETriggerEvent::Triggered, this,
+		EnhancedInputComponent->BindAction(RadialMenuAction, ETriggerEvent::Started, this,
 		                                   &ATCPlayerController::ShowRadialMenu);
 		EnhancedInputComponent->BindAction(RadialMenuAction, ETriggerEvent::Completed, this,
 		                                   &ThisClass::CloseRadialMenu);
@@ -47,6 +46,8 @@ void ATCPlayerController::ShowRadialMenu()
 {
 	HUD->ShowRadialWidget();
 	SetInputMode(FInputModeGameAndUI());
+		OriginTimeDilation = UGameplayStatics::GetGlobalTimeDilation(GetWorld());
+
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), .05f);
 }
 
@@ -54,5 +55,5 @@ void ATCPlayerController::CloseRadialMenu()
 {
 	HUD->HideRadialWidget();
 	SetInputMode(FInputModeGameOnly());
-	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), OriginTimeDilation);
 }

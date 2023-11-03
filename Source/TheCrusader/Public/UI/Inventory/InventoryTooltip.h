@@ -44,4 +44,8 @@ public:
 	UTextBlock* SellValue;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* StackWeight;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* Power;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* Armour;
 };

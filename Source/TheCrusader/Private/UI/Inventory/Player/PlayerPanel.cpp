@@ -20,7 +20,7 @@ void UPlayerPanel::RefreshInventory(const EEquipmentPart Part, UItemBase* ItemRe
 	case EEquipmentPart::Arm:
 		ArmSlot->UpdateItemSlot(ItemRef);
 		break;
-	case EEquipmentPart::Pants:
+	case EEquipmentPart::Legs:
 		PantsSlot->UpdateItemSlot(ItemRef);
 		break;
 	case EEquipmentPart::Feet:

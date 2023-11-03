@@ -63,7 +63,7 @@ void AInventoryPreview::AttachEquipment(const EEquipmentPart EquipmentPart, cons
 	}
 }
 
-void AInventoryPreview::DetachEquipment(EEquipmentPart EquipmentPart)
+void AInventoryPreview::DetachEquipment(const EEquipmentPart EquipmentPart)
 {
 	Super::DetachEquipment(EquipmentPart);
 

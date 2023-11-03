@@ -77,16 +77,6 @@ void ABalian::PossessedBy(AController* NewController)
 		AddCharacterAbilities();
 
 
-		if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
-		{
-			if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
-				UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-			{
-				Subsystem->AddMappingContext(DefaultMappingContext, 1);
-				Subsystem->AddMappingContext(GASMappingContext, 0);
-			}
-		}
-
 		if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
 		{
 			// Set Health/Mana/Stamina to their max. This is only necessary for *Respawn*.
@@ -279,6 +269,19 @@ void ABalian::SetOwningHorse(AHorse_Base* HorseToRide)
 
 void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
+	// check(PlayerInputComponent);
+
+	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
+			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->ClearAllMappings();
+			Subsystem->AddMappingContext(DefaultMappingContext, 2);
+			Subsystem->AddMappingContext(GASMappingContext, 3);
+		}
+	}
+
 	if (UTCInputComponent* EnhancedInputComponent = CastChecked<UTCInputComponent>(PlayerInputComponent))
 	{
 		const FTCGameplayTags& GameplayTags = FTCGameplayTags::Get();
@@ -894,7 +897,7 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 		CombatMode = EWeaponType::Boxer;
 		break;
 	case EButtonType::Sword:
-		if (!CurrentWeapon || bRiding)
+		if (!CurrentWeapon)
 			return false;
 		CombatMode = CurrentWeapon->GetItemData()->WeaponData.Type;
 		break;

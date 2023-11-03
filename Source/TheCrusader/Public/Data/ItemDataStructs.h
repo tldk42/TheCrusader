@@ -7,7 +7,7 @@
 #include "TheCrusader.h"
 #include "ItemDataStructs.generated.h"
 
-class AItemPickup;
+class AItem;
 
 UENUM(BlueprintType)
 enum class EItemQuality :uint8
@@ -37,8 +37,9 @@ enum class EEquipmentPart : uint8
 	Head,
 	Torso,
 	Arm,
-	Pants,
+	Legs,
 	Feet,
+	Hair,
 	Weapon,
 	Shield,
 	Bow
@@ -78,7 +79,7 @@ struct FEquipmentData
 	FName AttachmentSocket;
 
 	UPROPERTY(EditAnywhere)
-	FName EquipmentSocket;
+	FName DetachmentSocket;
 };
 
 USTRUCT()
@@ -127,7 +128,9 @@ struct FItemAssetData
 	UPROPERTY(EditAnywhere)
 	UStaticMesh* Mesh;
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<AItemPickup> ItemClass;
+	USkeletalMesh* AnimatedMesh;
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AItem> ItemClass;
 };
 
 USTRUCT()
@@ -135,7 +138,7 @@ struct FWeaponData
 {
 	GENERATED_BODY()
 
-	FWeaponData(): Type(), AttachmentMontage(nullptr), EquipmentMontage(nullptr)
+	FWeaponData(): Type(), BaseDamage(0), Strength(0), RequiredLevel(0)
 	{
 	}
 
@@ -143,16 +146,13 @@ struct FWeaponData
 	EWeaponType Type;
 
 	UPROPERTY(EditAnywhere)
-	FName AttachmentSocket;
+	float BaseDamage;
 
 	UPROPERTY(EditAnywhere)
-	FName EquipmentSocket;
+	float Strength;
 
 	UPROPERTY(EditAnywhere)
-	UAnimMontage* AttachmentMontage;
-
-	UPROPERTY(EditAnywhere)
-	UAnimMontage* EquipmentMontage;
+	int8 RequiredLevel;
 };
 
 USTRUCT()
@@ -189,7 +189,7 @@ struct FItemEquipmentData : public FItemData
 
 	UPROPERTY(EditAnywhere, Category = "Equipment Data")
 	FEquipmentData EquipmentData;
-	
+
 	UPROPERTY(EditAnywhere, Category = "Equipment Data")
 	EEquipmentPart EquipmentPart;
 };

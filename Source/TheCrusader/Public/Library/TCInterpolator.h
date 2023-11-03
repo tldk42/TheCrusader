@@ -435,3 +435,42 @@ public:
 private:
 	TGenericDoubleIIRInterpolator<FRotator> Interpolator;
 };
+
+USTRUCT(BlueprintType)
+struct FDoubleIIRInterpolatorFloat
+{
+	GENERATED_BODY();
+
+public:
+	FDoubleIIRInterpolatorFloat()
+	{
+		Interpolator = TGenericDoubleIIRInterpolator<float>(PrimaryInterpSpeed, IntermediateInterpSpeed);
+	}
+
+	FDoubleIIRInterpolatorFloat(float InPrimaryInterpSpeed, float InIntermediateInterpSpeed)
+		: PrimaryInterpSpeed(InPrimaryInterpSpeed)
+		, IntermediateInterpSpeed(InIntermediateInterpSpeed)
+	{
+		Interpolator = TGenericDoubleIIRInterpolator<float>(PrimaryInterpSpeed, IntermediateInterpSpeed);
+	}
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float PrimaryInterpSpeed = 4.f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float IntermediateInterpSpeed = 12.f;
+
+	float Eval(float Goal, float DeltaTime)
+	{
+		// set every time so we can tweak values while game is live
+		Interpolator.SetInterpSpeeds(PrimaryInterpSpeed, IntermediateInterpSpeed);
+		return Interpolator.Eval(Goal, DeltaTime);
+	}
+
+	void Reset() { Interpolator.Reset(); }
+	void SetInitialValue(float InitialValue) { Interpolator.SetInitialValue(InitialValue); }
+	float GetCurrentValue() const { return Interpolator.GetCurrentValue(); }
+
+private:
+	TGenericDoubleIIRInterpolator<float> Interpolator;
+};

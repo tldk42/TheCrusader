@@ -4,6 +4,7 @@
 #include "UI/TC_HUD.h"
 
 #include "TheCrusader.h"
+#include "TheCrusaderGameMode.h"
 #include "Character/Balian.h"
 #include "Components/ProgressBar.h"
 #include "Kismet/GameplayStatics.h"
@@ -19,6 +20,10 @@ ATC_HUD::ATC_HUD()
 void ATC_HUD::BeginPlay()
 {
 	Super::BeginPlay();
+
+	const ATheCrusaderGameMode* GameMode = Cast<ATheCrusaderGameMode>(GetWorld()->GetAuthGameMode());
+
+	PlayerPawn = Cast<ABalian>(GameMode->PlayerCharacterRef);
 
 
 	// CPP에서 위젯을 생성할때는 Static클래스를 이용할 수 없다. CPP side의 위젯은 그래픽관련된게 없음
@@ -70,7 +75,7 @@ void ATC_HUD::DisplayMenu()
 
 void ATC_HUD::ToggleMenu()
 {
-	if (ABalian* Player = Cast<ABalian>(GetOwningPawn()))
+	if (PlayerPawn)
 	{
 		// Player->ActivateInventoryCamera(!bIsMenuVisible);
 

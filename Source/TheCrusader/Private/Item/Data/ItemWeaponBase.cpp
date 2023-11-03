@@ -29,7 +29,7 @@ UItemBase* UItemWeaponBase::CreateItemCopy() const
 	return ItemCopy;
 }
 
-AItem* UItemWeaponBase::Drop(int32 NumToRemove)
+AItem* UItemWeaponBase::Drop(const int32 NumToRemove)
 {
 	if (OwningInventory && OwningInventory->FindMatchingItem(this))
 	{
@@ -74,23 +74,25 @@ void UItemWeaponBase::Use(ABalian* Character)
 	{
 		if (Character->GetInventory())
 		{
-			Character->GetInventory()->HandleEquipmentItem(this);
-		}
-
-
-		if (AItem_Weapon* Weapon = Cast<AItem_Weapon>(Drop(1)))
-		{
-			Weapon->DisableInteractionCollision();
-			Weapon->SetInstigator(Character);
-			Weapon->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-			                          EquipmentData.DetachmentSocket);
-			if (WeaponData.Type == EWeaponType::Bow)
+			if (AItem_Weapon* Weapon = Cast<AItem_Weapon>(Drop(1)))
 			{
-				Character->SetCurrentBow(Cast<AItem_Weapon_Bow>(Weapon));
-			}
-			else
-			{
-				Character->SetCurrentWeapon(Weapon);
+				Character->GetInventory()->HandleEquipmentItem(this);
+
+				Weapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				Weapon->DisableInteractionCollision();
+				Weapon->SetInstigator(Character);
+				Weapon->AttachToComponent(Character->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
+				                          EquipmentData.DetachmentSocket);
+				if (WeaponData.Type == EWeaponType::Bow)
+				{
+					Character->SetCurrentBow(Cast<AItem_Weapon_Bow>(Weapon));
+				}
+				else
+				{
+					Character->SetCurrentWeapon(Weapon);
+				}
+
+				Character->GetInventory()->OnInventoryUpdated.Broadcast();
 			}
 		}
 	}

@@ -3,6 +3,7 @@
 
 #include "Character/Horse_Base.h"
 
+#include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Character/Balian.h"
@@ -59,16 +60,6 @@ void AHorse_Base::BeginPlay()
 void AHorse_Base::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	APlayerController* PlayerController = Cast<APlayerController>(NewController);
-	if (!PlayerController)
-		return;
-	if (UEnhancedInputLocalPlayerSubsystem* SubsystemInterface = ULocalPlayer::GetSubsystem<
-		UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-	{
-		SubsystemInterface->AddMappingContext(InputMappingContext, InputMappingPriority + 1);
-		SubsystemInterface->AddMappingContext(LookControlsInputMappingContext, InputMappingPriority);
-	}
 }
 
 void AHorse_Base::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -89,8 +80,8 @@ void AHorse_Base::Tick(float DeltaTime)
 
 	if (bShouldStop)
 	{
-		InputForward = UKismetMathLibrary::FInterpTo(InputForward, .01f, DeltaTime,
-		                                             InputForward > 1.f ? 2.01f - InputForward : .3f);
+		InputForward = UKismetMathLibrary::FInterpTo(InputForward, 0.f, DeltaTime,
+		                                             InputForward > 3.f ? .5f : .8f);
 	}
 
 	if (bShouldStopTurn)
@@ -101,7 +92,17 @@ void AHorse_Base::Tick(float DeltaTime)
 
 void AHorse_Base::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+	check(PlayerInputComponent);
+
+	const APlayerController* PlayerController = Cast<APlayerController>(Controller);
+
+	if (UEnhancedInputLocalPlayerSubsystem* SubsystemInterface = ULocalPlayer::GetSubsystem<
+		UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+	{
+		SubsystemInterface->ClearAllMappings();
+		SubsystemInterface->AddMappingContext(InputMappingContext, 0);
+		SubsystemInterface->AddMappingContext(LookControlsInputMappingContext, 1);
+	}
 
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
@@ -123,7 +124,6 @@ void AHorse_Base::TryMount(ABalian* PlayerCharacter, UPrimitiveComponent* Direct
 	{
 		PlayerController->UnPossess();
 		PlayerController->Possess(this);
-
 
 		PlayerCharacter->GetCharacterMovement()->SetMovementMode(MOVE_Flying);
 		PlayerCharacter->GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -239,19 +239,20 @@ void AHorse_Base::MoveActionBinding(const FInputActionValue& InputActionValue)
 {
 	const FInputActionValue::Axis2D AxisValue = InputActionValue.Get<FInputActionValue::Axis2D>();
 
-	float InputValueY = bSprinting ? AxisValue.Y * 2 : AxisValue.Y;
+	const float InputValueY = bSprinting ? AxisValue.Y * 5 : AxisValue.Y * 3;
 
 	InputForward = UKismetMathLibrary::FInterpTo(InputForward, InputValueY,
 	                                             GetWorld()->DeltaTimeSeconds,
-	                                             InputForward <= .1f ? .2f : InputForward * .4f);
+	                                             InputForward <= 1.f ? .5f : .3f);
 
 	// 무시할만한 입력 -> 속도 저하
-	if (InputValueY <= 0.3f && AxisValue.Y <= 0.2f)
-		bShouldStop = AxisValue.Size() <= .2f ? true : false;
+	bShouldStop = InputValueY <= .1f ? true : false;
 
 	bShouldStopTurn = UKismetMathLibrary::Abs(AxisValue.Y) <= .1f ? true : false;
 
-	InputSide = AxisValue.X;
+	const float InputValueX = bSprinting ? AxisValue.X : AxisValue.X * .5f;
+
+	InputSide = InputValueX;
 }
 
 void AHorse_Base::DismountActionBinding()

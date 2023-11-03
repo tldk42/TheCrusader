@@ -5,6 +5,7 @@
 
 #include "Character/TCGASCharacter.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Windows/Accessibility/WindowsUIAControlProvider.h"
 
 
 UTCPhysicalAnimComp::UTCPhysicalAnimComp()
@@ -16,29 +17,41 @@ UTCPhysicalAnimComp::UTCPhysicalAnimComp()
 void UTCPhysicalAnimComp::HitReaction(const FHitResult& HitResult)
 {
 	SetComponentTickEnabled(true);
-	HitReactionTimeRemaining += 1;
+	HitReactionTimeRemaining += .9f;
 
-	ApplyPhysicalAnimationProfileBelow(TEXT("pelvis"), TEXT("Strong"), false, false);
 	MeshComponent->SetAllBodiesBelowSimulatePhysics(TEXT("pelvis"), true, false);
+	ApplyPhysicalAnimationProfileBelow(TEXT("pelvis"), TEXT("Strong"), false, true);
 
-	DrawDebugLine(GetWorld(), HitResult.TraceStart, HitResult.TraceEnd, FColor::Red, false, 1.5f, 0, 5.f);
+	DrawDebugLine(GetWorld(), HitResult.TraceStart, HitResult.TraceEnd, FColor::Emerald, false, 1.5f, 0, 5.f);
 	FVector Trace = HitResult.TraceEnd - HitResult.TraceStart;
 	UKismetMathLibrary::Vector_Normalize(Trace);
 	Trace = Trace * 5000 * MeshComponent->GetMass();
 
-	if (HitResult.BoneName == "None")
+	if (HitResult.BoneName.IsNone())
 	{
-		MeshComponent->AddImpulse(Trace, TEXT("head"), true);
+		if (const ACharacter* Target = Cast<ACharacter>(HitResult.GetActor()))
+		{
+			const FName BoneName = Target->GetMesh()->FindClosestBone(HitResult.Location);
+			MeshComponent->AddImpulse(Trace, BoneName);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Something Wrong %s() in %s"), *FString(__FUNCTION__), *GetName());
+		}
 	}
 	else
 	{
-		MeshComponent->AddImpulse(Trace, HitResult.BoneName == TEXT("pelvis") ? TEXT("spine_01") : HitResult.BoneName,
-		                          true);
+		MeshComponent->AddImpulse(Trace, HitResult.BoneName == TEXT("pelvis") ? TEXT("spine_01") : HitResult.BoneName);
 	}
 }
 
 void UTCPhysicalAnimComp::TogglePhyxsAnimation()
 {
+	// SetComponentTickEnabled(true);
+	// HitReactionTimeRemaining += 2.f;
+	//
+	// ApplyPhysicalAnimationProfileBelow(TEXT("pelvis"), TEXT("Strong"), false, false);
+	// MeshComponent->SetAllBodiesBelowSimulatePhysics(TEXT("pelvis"), true, false);
 }
 
 

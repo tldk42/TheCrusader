@@ -176,14 +176,13 @@ void UInventoryComponent::HandleEquipmentItem(UItemBase* ItemToAdd)
 	// 10. New Weapon을 플레이어에게 부착및 장착(플레이어에서 처리)
 	if (GetOwner())
 	{
-		if (ItemToAdd->ItemType == EItemType::Weapon)
+		if (const UItemEquipmentBase* Equipment = Cast<UItemEquipmentBase>(ItemToAdd))
 		{
-			EquippedContents.Add(EEquipmentPart::Weapon, ItemToAdd);
+			EquippedContents.Add(Equipment->EquipmentPart, ItemToAdd);
 		}
 		else
 		{
-			UItemEquipmentBase* Equipment = Cast<UItemEquipmentBase>(ItemToAdd);
-			EquippedContents.Add(Equipment->EquipmentPart, ItemToAdd);
+			// Error Occured
 		}
 	}
 }

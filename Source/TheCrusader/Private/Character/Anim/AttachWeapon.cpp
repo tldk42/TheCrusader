@@ -10,9 +10,12 @@ void UAttachWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* 
 {
 	if (const ABalian* Player = Cast<ABalian>(MeshComp->GetOwner()))
 	{
-		Player->GetCurrentWeapon()->AttachToComponent(Player->GetMesh(),
-		                                              FAttachmentTransformRules::SnapToTargetIncludingScale,
-		                                              Player->GetCurrentWeapon()->GetItemData()->WeaponData.
-		                                                      AttachmentSocket);
+		if (AItem_Weapon* Weapon = Player->GetCurrentWeapon())
+		{
+			Weapon->AttachToComponent(Player->GetMesh(),
+			                          FAttachmentTransformRules::SnapToTargetIncludingScale,
+			                          Weapon->GetItemData()->EquipmentData.
+			                                  DetachmentSocket);
+		}
 	}
 }

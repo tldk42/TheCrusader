@@ -5,6 +5,7 @@
 
 #include "Character/Balian.h"
 #include "Component/Inventory/InventoryComponent.h"
+#include "Components/TextBlock.h"
 #include "Data/ItemDataStructs.h"
 #include "UI/Inventory/Player/PlayerItemSlot.h"
 
@@ -22,7 +23,6 @@ void UPlayerInventoryPanel::RefreshInventory()
 	ShieldSlot->UpdateItemSlot(nullptr);
 	BowSlot->UpdateItemSlot(nullptr);
 
-
 	for (const auto& InventoryItem : InventoryRef->GetEquippedContents())
 	{
 		switch (InventoryItem.Key)
@@ -36,7 +36,7 @@ void UPlayerInventoryPanel::RefreshInventory()
 		case EEquipmentPart::Arm:
 			ArmSlot->UpdateItemSlot(InventoryItem.Value);
 			break;
-		case EEquipmentPart::Pants:
+		case EEquipmentPart::Legs:
 			PantsSlot->UpdateItemSlot(InventoryItem.Value);
 			break;
 		case EEquipmentPart::Feet:
@@ -54,6 +54,12 @@ void UPlayerInventoryPanel::RefreshInventory()
 		default: ;
 		}
 	}
+
+	PowerText->SetText(FText::Format(FText::FromString("Power: {0}"),
+	                                 PlayerRef->GetPower()));
+	ArmourText->SetText(FText::Format(FText::FromString("Armour: {0}"),
+	                                  PlayerRef->GetArmour()));
+	SkillText->SetText(FText::FromString("Skill: 9999"));
 }
 
 void UPlayerInventoryPanel::NativeOnInitialized()
@@ -69,6 +75,7 @@ void UPlayerInventoryPanel::NativeOnInitialized()
 		{
 			InventoryRef->OnInventoryUpdated.AddUObject(this, &ThisClass::RefreshInventory);
 			SetInfoText();
+			RefreshInventory();
 		}
 	}
 }

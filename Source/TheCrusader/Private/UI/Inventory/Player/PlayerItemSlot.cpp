@@ -39,28 +39,28 @@ void UPlayerItemSlot::NativeConstruct()
 	switch (SlotName)
 	{
 	case EEquipmentPart::Head:
-		SlotNameText->SetText(FText::FromString(L"머리"));
+		SlotNameText->SetText(FText::FromString("Head"));
 		break;
 	case EEquipmentPart::Torso:
-		SlotNameText->SetText(FText::FromString(L"상의"));
+		SlotNameText->SetText(FText::FromString("Torso"));
 		break;
 	case EEquipmentPart::Arm:
-		SlotNameText->SetText(FText::FromString(L"팔"));
+		SlotNameText->SetText(FText::FromString("Arm"));
 		break;
-	case EEquipmentPart::Pants:
-		SlotNameText->SetText(FText::FromString(L"하의"));
+	case EEquipmentPart::Legs:
+		SlotNameText->SetText(FText::FromString("Pants"));
 		break;
 	case EEquipmentPart::Feet:
-		SlotNameText->SetText(FText::FromString(L"신발"));
+		SlotNameText->SetText(FText::FromString("Shoes"));
 		break;
 	case EEquipmentPart::Weapon:
-		SlotNameText->SetText(FText::FromString(L"무기"));
+		SlotNameText->SetText(FText::FromString("Weapon"));
 		break;
 	case EEquipmentPart::Shield:
-		SlotNameText->SetText(FText::FromString(L"방패"));
+		SlotNameText->SetText(FText::FromString("Shield"));
 		break;
 	case EEquipmentPart::Bow:
-		SlotNameText->SetText(FText::FromString(L"원거리"));
+		SlotNameText->SetText(FText::FromString("Bow"));
 		break;
 	default: ;
 	}

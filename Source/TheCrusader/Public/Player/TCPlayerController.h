@@ -40,4 +40,6 @@ private:
 
 	UPROPERTY(BlueprintReadWrite, Category = "Reference", meta = (AllowPrivateAccess = true))
 	ABalian* PlayerRef;
+
+	float OriginTimeDilation;
 };

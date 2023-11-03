@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Interfaces/Interactable.h"
+#include "Movement/TCRidingState.h"
 #include "Horse_Base.generated.h"
 
 class USphereComponent;
@@ -25,6 +26,11 @@ public:
 	void TryMount(class ABalian* PlayerCharacter, UPrimitiveComponent* DirectionArrow);
 	UFUNCTION(BlueprintCallable, Category = "Character|Horse")
 	void TryUnMount();
+
+	FORCEINLINE FTCRidingState GetRidingState() const
+	{
+		return RidingState;
+	}
 
 #pragma region IInteractable
 	virtual void BeginFocus() override;
@@ -65,6 +71,10 @@ public:
 	//----------------------------------------------
 	// Variables
 	// ---------------------------------------------
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (AllowPrivateAccess = true))
+	float InputForward;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (AllowPrivateAccess = true))
+	float InputSide;
 protected:
 	TObjectPtr<ABalian> Rider;
 
@@ -127,7 +137,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	int32 InputMappingPriority = 1;
 #pragma endregion InputMapping
-
+	
+	FTCRidingState RidingState;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movement", meta = (AllowPrivateAccess = true))
 	bool bSprinting = false;
@@ -138,8 +149,5 @@ protected:
 	float BaseTurnRate = 30.f;
 	float BaseLookUpRate = 30.f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (AllowPrivateAccess = true))
-	float InputForward;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (AllowPrivateAccess = true))
-	float InputSide;
+
 };

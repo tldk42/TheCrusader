@@ -2,14 +2,7 @@
 
 
 #include "Item/Weapon/Item_Weapon_Bow.h"
-
-#include "Blueprint/UserWidget.h"
-#include "Blueprint/WidgetLayoutLibrary.h"
 #include "Components/CapsuleComponent.h"
-#include "Kismet/GameplayStatics.h"
-#include "Kismet/GameplayStaticsTypes.h"
-#include "Kismet/KismetMathLibrary.h"
-#include "UI/TC_HUD.h"
 
 
 AItem_Weapon_Bow::AItem_Weapon_Bow()

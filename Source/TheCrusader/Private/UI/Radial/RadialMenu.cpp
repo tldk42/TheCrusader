@@ -1,13 +1,14 @@
 ﻿// Written by jaegang lim
 
 #include "UI/Radial/RadialMenu.h"
-#include "TheCrusader.h"
+
+#include "TheCrusaderGameMode.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Character/Balian.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
-#include "Player/TCPlayerController.h"
 #include "UI/Radial/RadialButtonBase.h"
 
 void URadialMenu::UpdateActiveBar(const int Index) const
@@ -26,10 +27,11 @@ void URadialMenu::UpdateActiveBar()
 		if (ActivatedBtn->bLocked)
 			return;
 
-		ATCPlayerController* Player = Cast<ATCPlayerController>(GetOwningPlayer());
-		if (Player)
+		const ATheCrusaderGameMode* GameMode = Cast<ATheCrusaderGameMode>(GetWorld()->GetAuthGameMode());
+
+		if (ABalian* Player = Cast<ABalian>(GameMode->PlayerCharacterRef))
 		{
-			if (Player->UpdatePlayerState(ActivatedBtn->ButtonType))
+			if (Player->UpdateStateByButton(ActivatedBtn->ButtonType))
 			{
 				RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
 				CachedIndex = SelectedIndex;

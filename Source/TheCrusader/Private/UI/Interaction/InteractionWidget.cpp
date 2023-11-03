@@ -1,4 +1,4 @@
-﻿// Written by jaegang lim
+// Written by jaegang lim
 
 
 #include "UI/Interaction/InteractionWidget.h"
@@ -45,6 +45,8 @@ void UInteractionWidget::UpdateWidget(const FInteractableData* InteractableData)
 	case EInteractableType::NonPlayerCharacter:
 		break;
 	case EInteractableType::Ride:
+		KeyPressText->SetText(FText::FromString("Press"));
+		InteractionProgressbar->SetVisibility(ESlateVisibility::Collapsed);
 		break;
 	case EInteractableType::Toggle:
 		break;
