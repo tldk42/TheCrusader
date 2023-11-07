@@ -2,6 +2,8 @@
 
 
 #include "GAS/Attribute/TCDamageExecution.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "GAS/Attribute/TCAttributeSet.h"
 #include "AbilitySystemComponent.h"
 
@@ -72,7 +74,7 @@ void UTCDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecu
 	ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(DamageStatistic().DamageDef, EvaluationParameters,
 	                                                           Damage);
 	Damage += FMath::Max<float>(
-		Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 10.0f);
+		Spec.GetSetByCallerMagnitude(FGameplayTag::RequestGameplayTag(FName("Data.Damage")), false, -1.0f), 0.0f);
 	Damage = FMath::FRandRange(Damage * 0.7, Damage * 1.3);
 	if (const FHitResult* HitResult = ExecutionParams.GetOwningSpec().GetEffectContext().GetHitResult())
 	{
@@ -86,5 +88,13 @@ void UTCDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecu
 	{
 		OutExecutionOutput.AddOutputModifier(
 			FGameplayModifierEvaluatedData(DamageStatistic().DamageProperty, EGameplayModOp::Additive, DamageDone));
+	}
+	// Block중이라면 Attribute는 건들지 않고 큐만 진행
+	else if (TargetTags->HasTagExact(FGameplayTag::RequestGameplayTag("State.Blocking")))
+	{
+		const FGameplayEventData PayloadData;
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor,
+		                                                         FGameplayTag::RequestGameplayTag(
+			                                                         "Event.Montage.BlockedHit"), PayloadData);
 	}
 }
