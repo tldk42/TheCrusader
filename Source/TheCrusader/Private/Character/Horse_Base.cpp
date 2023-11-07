@@ -3,7 +3,6 @@
 
 #include "Character/Horse_Base.h"
 
-#include "AbilitySystemComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Character/Balian.h"
@@ -68,7 +67,19 @@ void AHorse_Base::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* Ot
 {
 	if (Rider == OtherActor)
 	{
-		TryMount(Rider, OverlappedComp);
+		float Location = UKismetMathLibrary::Dot_VectorVector(GetActorForwardVector(), Rider->GetActorForwardVector());
+		if (Location > .5f)
+		{
+			TryMount(Rider, OverlappedComp, "Back");
+		}
+		else if (Location >= -.3f)
+		{
+			TryMount(Rider, OverlappedComp, "Side");
+		}
+		else
+		{
+			TryMount(Rider, OverlappedComp, "Front");
+		}
 	}
 }
 
@@ -81,7 +92,7 @@ void AHorse_Base::Tick(float DeltaTime)
 	if (bShouldStop)
 	{
 		InputForward = UKismetMathLibrary::FInterpTo(InputForward, 0.f, DeltaTime,
-		                                             InputForward > 3.f ? .5f : .8f);
+		                                             InputForward > 3.f ? .3f : .5f);
 	}
 
 	if (bShouldStopTurn)
@@ -99,7 +110,6 @@ void AHorse_Base::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	if (UEnhancedInputLocalPlayerSubsystem* SubsystemInterface = ULocalPlayer::GetSubsystem<
 		UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 	{
-		SubsystemInterface->ClearAllMappings();
 		SubsystemInterface->AddMappingContext(InputMappingContext, 0);
 		SubsystemInterface->AddMappingContext(LookControlsInputMappingContext, 1);
 	}
@@ -115,13 +125,33 @@ void AHorse_Base::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ThisClass::Jump);
 		EnhancedInputComponent->BindAction(DismountAction, ETriggerEvent::Triggered, this,
 		                                   &ThisClass::DismountActionBinding);
+		EnhancedInputComponent->BindAction(LMBAction, ETriggerEvent::Triggered, Rider.Get(),
+		                                   &ABalian::LMBClick);
+		EnhancedInputComponent->BindAction(RMBAction, ETriggerEvent::Triggered, Rider.Get(),
+		                                   &ABalian::RMBClick);
+		EnhancedInputComponent->BindAction(RMBAction, ETriggerEvent::Completed, Rider.Get(),
+		                                   &ABalian::RMBCompleted);
 	}
 }
 
-void AHorse_Base::TryMount(ABalian* PlayerCharacter, UPrimitiveComponent* DirectionArrow)
+void AHorse_Base::RemoveMappingContext() const
+{
+	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
+			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->RemoveMappingContext(InputMappingContext);
+			Subsystem->RemoveMappingContext(LookControlsInputMappingContext);
+		}
+	}
+}
+
+void AHorse_Base::TryMount(ABalian* PlayerCharacter, UPrimitiveComponent* DirectionArrow, FName SectionName)
 {
 	if (AController* PlayerController = PlayerCharacter->GetController())
 	{
+		PlayerCharacter->RemoveMappingContext();
 		PlayerController->UnPossess();
 		PlayerController->Possess(this);
 
@@ -133,11 +163,11 @@ void AHorse_Base::TryMount(ABalian* PlayerCharacter, UPrimitiveComponent* Direct
 
 		if (DirectionArrow == LeftArriveDetect)
 		{
-			PlayerCharacter->PlayAnimMontage(RiderMontages[0]);
+			PlayerCharacter->PlayAnimMontage(RiderMontages[0], 1, SectionName);
 		}
 		else
 		{
-			PlayerCharacter->PlayAnimMontage(RiderMontages[1]);
+			PlayerCharacter->PlayAnimMontage(RiderMontages[1], 1, SectionName);
 		}
 
 		LeftArriveDetect->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -149,6 +179,7 @@ void AHorse_Base::TryUnMount()
 {
 	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
+		RemoveMappingContext();
 		PlayerController->UnPossess();
 		PlayerController->Possess(Rider);
 
@@ -243,14 +274,14 @@ void AHorse_Base::MoveActionBinding(const FInputActionValue& InputActionValue)
 
 	InputForward = UKismetMathLibrary::FInterpTo(InputForward, InputValueY,
 	                                             GetWorld()->DeltaTimeSeconds,
-	                                             InputForward <= 1.f ? .5f : .3f);
+	                                             InputForward <= 1.f ? .4f : .24f);
 
 	// 무시할만한 입력 -> 속도 저하
 	bShouldStop = InputValueY <= .1f ? true : false;
 
 	bShouldStopTurn = UKismetMathLibrary::Abs(AxisValue.Y) <= .1f ? true : false;
 
-	const float InputValueX = bSprinting ? AxisValue.X : AxisValue.X * .5f;
+	const float InputValueX = (bSprinting || InputForward > 2.4f) ? AxisValue.X : AxisValue.X * .5f;
 
 	InputSide = InputValueX;
 }

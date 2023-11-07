@@ -23,10 +23,12 @@ public:
 	AHorse_Base();
 
 	UFUNCTION(BlueprintCallable, Category = "Character|Horse")
-	void TryMount(class ABalian* PlayerCharacter, UPrimitiveComponent* DirectionArrow);
+	void TryMount(class ABalian* PlayerCharacter, UPrimitiveComponent* DirectionArrow, FName SectionName);
 	UFUNCTION(BlueprintCallable, Category = "Character|Horse")
 	void TryUnMount();
-
+	UFUNCTION(BlueprintImplementableEvent, Category = "Character|Horse")
+	void MoveToPlayer(FVector Location);
+	
 	FORCEINLINE FTCRidingState GetRidingState() const
 	{
 		return RidingState;
@@ -67,6 +69,8 @@ public:
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	void RemoveMappingContext() const;
+
 
 	//----------------------------------------------
 	// Variables
@@ -76,6 +80,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mesh", meta = (AllowPrivateAccess = true))
 	float InputSide;
 protected:
+	
 	TObjectPtr<ABalian> Rider;
 
 	UPROPERTY(EditInstanceOnly, Category = "Interact Data")
@@ -133,6 +138,12 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	class UInputAction* DismountAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	class UInputAction* LMBAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	class UInputAction* RMBAction;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	int32 InputMappingPriority = 1;
