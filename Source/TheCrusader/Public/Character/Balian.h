@@ -67,6 +67,11 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void MoveToLocation(FVector Location);
 
+	void RemoveMappingContext() const;
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void StealthTakeDown();
+
 #pragma region GETTER
 
 	FORCEINLINE bool IsInteracting() const { return GetWorldTimerManager().IsTimerActive(TimerHandle_Interaction); }
@@ -271,7 +276,7 @@ private:
 
 	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
 	AInventoryPreview* PreviewCharacter;
-	
+
 	UPROPERTY(EditDefaultsOnly, Meta = (AllowPrivateAccess = "true"))
 	float DesiredSprintSpeed;
 
@@ -283,4 +288,6 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Meta = (AllowPrivateAccess = "true"))
 	float DefaultSprintMinInputSize = 0.5f;
+
+	friend class AHorse_Base;
 };

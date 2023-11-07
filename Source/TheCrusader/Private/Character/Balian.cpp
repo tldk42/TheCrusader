@@ -276,7 +276,6 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
-			Subsystem->ClearAllMappings();
 			Subsystem->AddMappingContext(DefaultMappingContext, 2);
 			Subsystem->AddMappingContext(GASMappingContext, 3);
 		}
@@ -311,6 +310,19 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		                                        ETriggerEvent::Triggered, this, &ThisClass::Ability1);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Crouch,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::CrouchPressed);
+	}
+}
+
+void ABalian::RemoveMappingContext() const
+{
+	if (const APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
+			UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->RemoveMappingContext(DefaultMappingContext);
+			Subsystem->RemoveMappingContext(GASMappingContext);
+		}
 	}
 }
 
@@ -592,9 +604,12 @@ void ABalian::LMBClick()
 	{
 		DoShoot();
 	}
-	else
+	else if (!bRiding)
 	{
 		DoMeleeAttack();
+	}
+	else
+	{
 	}
 }
 
@@ -606,7 +621,7 @@ void ABalian::RMBClick()
 	{
 		Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Aiming"));
 	}
-	else
+	else if (!bRiding)
 	{
 		Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Block"));
 	}
@@ -753,16 +768,18 @@ void ABalian::FoundInteractable(AActor* NewInteractable)
 
 	if (NewInteractable->IsA(AEnemyBase::StaticClass()))
 	{
+		// TODO: 암살 조건 추가
+		// Enemy State 변수 선언
+		// State가 Invesgating || Idle || Patrolling 상태일 때 가능하도록 설정
 		if (UKismetMathLibrary::Dot_VectorVector(GetActorForwardVector(), NewInteractable->GetActorForwardVector()) >=
 			0.5f)
 		{
-			HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+			TargetCharacter = Cast<AEnemyBase>(NewInteractable);
 		}
 	}
-	else
-	{
-		HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
-	}
+
+	HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+
 
 	TargetInteractable->BeginFocus();
 }
@@ -908,7 +925,11 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 		break;
 	case EButtonType::Torch:
 	case EButtonType::Horse:
-		// Call Horse
+		if (OwningHorse)
+		{
+			OwningHorse->MoveToPlayer(GetActorLocation());
+		}
+	// Call Horse
 		return false;
 	default: ;
 	}
