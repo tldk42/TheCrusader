@@ -4,16 +4,16 @@
 #include "Character/EnemyBase.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Character/Balian.h"
 #include "Component/Physics/TCPhysicalAnimComp.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Attribute/TCAttributeSet.h"
-#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "UI/DamageText/DamageText.h"
 #include "UI/FloatingBar/EnemyBar.h"
-#include "UI/FloatingBar/NPCBarBase.h"
 
 
 AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
@@ -59,6 +59,8 @@ void AEnemyBase::EndInteract()
 void AEnemyBase::Interact(ABalian* PlayerCharacter)
 {
 	IInteractable::Interact(PlayerCharacter);
+
+	PlayerCharacter->StealthTakeDown();
 }
 
 void AEnemyBase::BeginPlay()
@@ -101,7 +103,7 @@ void AEnemyBase::OnDamaged(const float DamageAmount, const FHitResult& HitInfo, 
 
 
 	if (FVector2D PathToScreen; UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition(PlayerController,
-		HitInfo.Location, PathToScreen, false))
+		HitInfo.Location.IsZero() ? GetActorLocation() : HitInfo.Location, PathToScreen, false))
 	{
 		if (UDamageText* DamageTextWidget = CreateWidget<UDamageText>(GetWorld(), DamageTextWidgetClass))
 		{
@@ -114,6 +116,20 @@ void AEnemyBase::OnDamaged(const float DamageAmount, const FHitResult& HitInfo, 
 			UWidgetLayoutLibrary::SlotAsCanvasSlot(DamageTextWidget->DamageText)->SetPosition(PathToScreen);
 			DamageTextWidget->AddToViewport();
 		}
+	}
+
+	if (DamageTags.HasTagExact(FGameplayTag::RequestGameplayTag("Ability.Action.Stealth")))
+	{
+		HideFloatingBar();
+		return;
+	}
+
+	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+
+	PhysicalAnimComponent->HitReaction(HitInfo);
+	if (!TargetCharacter)
+	{
+		TargetCharacter = InstigatorCharacter;
 	}
 }
 

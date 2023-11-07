@@ -118,6 +118,9 @@ public:
 	virtual void FinishDying();
 
 protected:
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void PlayMantleMontage(UAnimMontage* MontageToPlay);
+
 	UFUNCTION(BlueprintCallable)
 	virtual void DoMeleeAttack();
 

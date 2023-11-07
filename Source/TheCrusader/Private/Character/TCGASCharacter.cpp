@@ -40,6 +40,9 @@ ATCGASCharacter::ATCGASCharacter(const FObjectInitializer& ObjectInitializer)
 	RightArrow->SetupAttachment(GetCapsuleComponent());
 	HandArrow->SetupAttachment(GetMesh(), "arrow");
 
+	UpdateMorphTargets();
+	SetMasterPoseComponentForParts();
+
 	PrimaryActorTick.bCanEverTick = false;
 	bAlwaysRelevant = true;
 }
@@ -479,14 +482,6 @@ void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, c
                                 ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
 {
 	UE_LOG(LogTemp, Warning, TEXT("DAMAGED"));
-
-	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
-
-	PhysicalAnimComponent->HitReaction(HitInfo);
-	if (!TargetCharacter)
-	{
-		TargetCharacter = InstigatorCharacter;
-	}
 }
 
 void ATCGASCharacter::OnHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
