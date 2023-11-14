@@ -30,4 +30,7 @@ public:
 
 	UPROPERTY()
 	int32 LoadSlotIndex = 0;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUserWidget> LoadingScreenWidget;
 };

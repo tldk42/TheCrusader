@@ -4,6 +4,7 @@
 #include "Game/TCGameInstance.h"
 
 #include "MoviePlayer.h"
+#include "Blueprint/UserWidget.h"
 
 void UTCGameInstance::Init()
 {
@@ -19,7 +20,9 @@ void UTCGameInstance::BeginLoadingScreen(const FString& MapName)
 	{
 		FLoadingScreenAttributes LoadingScreen;
 		LoadingScreen.bAutoCompleteWhenLoadingCompletes = false;
-		LoadingScreen.WidgetLoadingScreen = FLoadingScreenAttributes::NewTestLoadingScreenWidget();
+
+		UUserWidget* Widget = CreateWidget<UUserWidget>(GetWorld(), LoadingScreenWidget);
+		LoadingScreen.WidgetLoadingScreen = Widget->TakeWidget();
  
 		GetMoviePlayer()->SetupLoadingScreen(LoadingScreen);
 	}
