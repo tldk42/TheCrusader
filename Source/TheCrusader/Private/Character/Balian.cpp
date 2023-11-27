@@ -448,7 +448,7 @@ void ABalian::LoadProgress()
 
 			if (InventoryComponent)
 			{
-				for (const auto& [ItemDataClass, InventoryItem] : SaveData->SavedInventory)
+				for (const auto& [ItemDataClass, InventoryItem, ObjectName, Data] : SaveData->SavedInventory)
 				{
 					UItemBase* Item = NewObject<UItemBase>(this, ItemDataClass);
 					Item->ItemData = InventoryItem;
@@ -457,7 +457,7 @@ void ABalian::LoadProgress()
 					InventoryComponent->HandleAddItem(Item);
 				}
 
-				for (const auto& [ItemDataClass, InventoryItem] : SaveData->SavedEquipments)
+				for (const auto& [ItemDataClass, InventoryItem, ObjectName, Data] : SaveData->SavedEquipments)
 				{
 					UItemEquipmentBase* Item = NewObject<UItemEquipmentBase>(this, ItemDataClass);
 					Item->ItemData = InventoryItem;

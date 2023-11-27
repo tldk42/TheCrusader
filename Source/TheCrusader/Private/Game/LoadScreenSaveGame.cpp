@@ -2,39 +2,40 @@
 
 
 #include "Game/LoadScreenSaveGame.h"
-
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "Interfaces/SaveInterface.h"
 
 void ULoadScreenSaveGame::ActorArraySavor(TArray<AActor*>& SaveActors)
 {
 	for (AActor* SaveActor : SaveActors)
 	{
+		if (!IsValid(SaveActor) || !SaveActor->Implements<USaveInterface>()) continue;
 		ActorSaver(SaveActor);
 	}
 }
 
 void ULoadScreenSaveGame::ActorSaver(AActor* SaveActor)
 {
-	FSavedMap SavedMap = GetSavedMapWithMapName(MapAssetName);
+	int MapIndex = 0;
+	GetSavedMapWithMapName(MapAssetName, MapIndex);
 
-	const int32 Index = SavedMap.SavedActors.Emplace();
-	FSavedActor& NewSaveActor = SavedMap.SavedActors[Index];
+	FSavedActor NewSavedActor;
+	NewSavedActor.Name = SaveActor->GetFName();
+	NewSavedActor.Transform = SaveActor->GetTransform();
+	NewSavedActor.Class = SaveActor->GetClass();
+	NewSavedActor.bActor = true;
 
-	NewSaveActor.ActorName = SaveActor->GetFName();
-	NewSaveActor.Transform = SaveActor->GetTransform();
-	NewSaveActor.
-}
-
-void ULoadScreenSaveGame::ActorPreLoader(AActor* WorldActor, FSavedActor& ActorRecord)
-{
-}
-
-void ULoadScreenSaveGame::UObjectArraySaver(TArray<UObject*>& SaveObjects)
-{
-	for (UObject* SaveObject : SaveObjects)
+	const int32 ActorIndex = SavedMaps[MapIndex].SavedActors.Find(NewSavedActor);
+	if (ActorIndex == INDEX_NONE)
 	{
-		UObjectSaver(SaveObject);
+		SavedMaps[MapIndex].SavedActors.Emplace(NewSavedActor);
 	}
+	else
+	{
+		SavedMaps[MapIndex].SavedActors[ActorIndex] = NewSavedActor;
+	}
+
+	SaveData(SaveActor, NewSavedActor.Data);
 }
 
 void ULoadScreenSaveGame::UObjectSaver(UObject* SaveObject)
@@ -60,6 +61,7 @@ void ULoadScreenSaveGame::SaveData(UObject* Object, TArray<uint8>& Data)
 	FMemoryWriter MemoryWriter = FMemoryWriter(Data, true);
 
 	FObjectAndNameAsStringProxyArchive MyArchive = FObjectAndNameAsStringProxyArchive(MemoryWriter, true);
+	MyArchive.ArIsSaveGame = true;
 
 	Object->Serialize(MyArchive);
 }
@@ -72,16 +74,18 @@ void ULoadScreenSaveGame::LoadData(UObject* Object, TArray<uint8>& Data)
 	FMemoryReader MemoryReader(Data, true);
 
 	FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
+	Archive.ArIsSaveGame = true;
 	Object->Serialize(Archive);
 }
 
-FSavedMap ULoadScreenSaveGame::GetSavedMapWithMapName(const FString& InMapName)
+FSavedMap ULoadScreenSaveGame::GetSavedMapWithMapName(const FString& InMapName, int& Index)
 {
-	for (const FSavedMap& Map : SavedMaps)
+	for (int i = 0; SavedMaps.IsValidIndex(i); ++i)
 	{
-		if (Map.MapAssetName == InMapName)
+		if (SavedMaps[i].MapAssetName == InMapName)
 		{
-			return Map;
+			Index = i;
+			return SavedMaps[i];
 		}
 	}
 

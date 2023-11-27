@@ -10,7 +10,6 @@
 #include "GameFramework/PlayerStart.h"
 #include "Interfaces/SaveInterface.h"
 #include "Kismet/GameplayStatics.h"
-#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 #include "UI/ViewModel/MVVM_LoadSlot.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -89,13 +88,13 @@ void ATheCrusaderGameMode::SaveInGameProgressData(ULoadScreenSaveGame* SaveObjec
 	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
 }
 
-void ATheCrusaderGameMode::SaveWorldState(UWorld* World, const FString& DestinationMapAssetName) const
+void ATheCrusaderGameMode::SaveWorldState(const UWorld* World, const FString& DestinationMapAssetName) const
 {
+	const UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance());
+	check(TCGameInstance);
+
 	FString WorldName = World->GetMapName();
 	WorldName.RemoveFromStart(World->StreamingLevelsPrefix);
-
-	UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance());
-	check(TCGameInstance);
 
 	if (ULoadScreenSaveGame* SaveGame = GetSaveSlotData(TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex))
 	{
@@ -112,35 +111,42 @@ void ATheCrusaderGameMode::SaveWorldState(UWorld* World, const FString& Destinat
 			SaveGame->SavedMaps.Add(NewSavedMap);
 		}
 
-		FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
-		SavedMap.SavedActors.Empty();
+		TArray<AActor*> WorldActors;
+		UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), WorldActors);
+		SaveGame->ActorArraySavor(WorldActors);
 
-		/** FActorIterator를 이용하면 원하는 타입의 액터를 선별*/
-		for (FActorIterator It(World); It; ++It)
-		{
-			AActor* Actor = *It;
+		// int Index;
+		// FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName, Index);
+		// SavedMap.SavedActors.Empty();
 
-			/** 유효한 액터와 SaveInterface를 상속받은 액터들에 대해서만 검사한다.*/
-			if (!IsValid(Actor) || !Actor->Implements<USaveInterface>()) continue;
-
-			/** 유효한 액터들의 이름과 위치를 저장한다.*/
-			FSavedActor SavedActor;
-			SavedActor.ActorName = Actor->GetFName();
-			SavedActor.Transform = Actor->GetTransform();
-
-			/** FMemoryWriter를 이용해서 파일에 저장한다.*/
-			FMemoryWriter MemoryWriter(SavedActor.Bytes);
-
-			/** FObjectAndNameAsStringProxyArchive
-			 * 객체와 이름을 문자열로 직렬화하는 역할 */
-			FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
-			Archive.ArIsSaveGame = true;
-
-			/** 액터의 상태를 Archive에 직렬화 (MemoryWriter -> SavecActor.Bytes에 저장됨)*/
-			Actor->Serialize(Archive);
-
-			SavedMap.SavedActors.AddUnique(SavedActor);
-		}
+		// /** FActorIterator를 이용하면 원하는 타입의 액터를 선별*/
+		// for (FActorIterator It(World); It; ++It)
+		// {
+		// 	AActor* Actor = *It;
+		//
+		// 	/** 유효한 액터와 SaveInterface를 상속받은 액터들에 대해서만 검사한다.*/
+		// 	if (!IsValid(Actor) || !Actor->Implements<USaveInterface>()) continue;
+		//
+		// 	/** 유효한 액터들의 이름과 위치를 저장한다.*/
+		// 	FSavedActor SavedActor;
+		// 	SavedActor.Name = Actor->GetFName();
+		// 	SavedActor.Transform = Actor->GetTransform();
+		//
+		// 	SaveGame->LoadData(Actor, SavedActor.Data);
+		//
+		// 	/** FMemoryWriter를 이용해서 파일에 저장한다.*/
+		// 	FMemoryWriter MemoryWriter(SavedActor.Data);
+		//
+		// 	/** FObjectAndNameAsStringProxyArchive
+		// 	 * 객체와 이름을 문자열로 직렬화하는 역할 */
+		// 	FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
+		// 	Archive.ArIsSaveGame = true;
+		//
+		// 	/** 액터의 상태를 Archive에 직렬화 (MemoryWriter -> SavecActor.Bytes에 저장됨)*/
+		// 	Actor->Serialize(Archive);
+		//
+		// 	SavedMap.SavedActors.AddUnique(SavedActor);
+		// }
 
 		// for (FSavedMap& MapToReplace : SaveGame->SavedMaps)
 		// {
@@ -155,58 +161,16 @@ void ATheCrusaderGameMode::SaveWorldState(UWorld* World, const FString& Destinat
 
 void ATheCrusaderGameMode::SaveActor(AActor* Actor) const
 {
-	if (UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance()))
+	if (const UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance()))
 	{
 		const FString InGameLoadSlotName = TCGameInstance->LoadSlotName;
 		const int32 InGameLoadSlotIndex = TCGameInstance->LoadSlotIndex;
 
 		if (ULoadScreenSaveGame* SaveGame = GetSaveSlotData(InGameLoadSlotName, InGameLoadSlotIndex))
 		{
-			FString WorldName = GetWorld()->GetMapName();
-			WorldName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
-			FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
+			SaveGame->ActorSaver(Actor);
 
-			if (SavedMap.MapAssetName.IsEmpty())
-			{
-				SavedMap.MapAssetName = WorldName;
-				SavedMap.SavedActors.Empty();
-
-				FSavedActor SavedActor;
-				SavedActor.ActorName = Actor->GetFName();
-				SavedActor.Transform = Actor->GetTransform();
-
-				FMemoryWriter MemoryWriter(SavedActor.Bytes);
-
-				FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
-				Archive.ArIsSaveGame = true;
-
-				Actor->Serialize(Archive);
-				SavedMap.SavedActors.AddUnique(SavedActor);
-
-				SaveGame->SavedMaps.Add(SavedMap);
-				
-
-				UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
-				return;
-			}
-
-			for (FSavedActor& SavedActor : SavedMap.SavedActors)
-			{
-				if (SavedActor.ActorName == GetFName())
-				{
-					SavedActor.Transform = Actor->GetTransform();
-
-					FMemoryWriter MemoryWriter(SavedActor.Bytes);
-
-					FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
-					Archive.ArIsSaveGame = true;
-
-					Actor->Serialize(Archive);
-					UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName,
-					                                 TCGameInstance->LoadSlotIndex);
-					return;
-				}
-			}
+			UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
 		}
 	}
 }
@@ -233,21 +197,24 @@ void ATheCrusaderGameMode::LoadWorldState(UWorld* World) const
 		{
 			if (AActor* Actor = *Iterator; Actor->Implements<USaveInterface>())
 			{
-				FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
-				for (const FSavedActor& SavedActor : SavedMap.SavedActors)
+				int Index;
+				FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName, Index);
+				for (FSavedActor& SavedActor : SavedMap.SavedActors)
 				{
-					if (SavedActor.ActorName == Actor->GetFName())
+					if (SavedActor.Name == Actor->GetFName())
 					{
 						if (ISaveInterface::Execute_ShouldLoadTransform(Actor))
 						{
 							Actor->SetActorTransform(SavedActor.Transform);
 						}
 
-						FMemoryReader MemoryReader(SavedActor.Bytes);
+						SaveGame->LoadData(Actor, SavedActor.Data);
 
-						FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
-						Archive.ArIsSaveGame = true;
-						Actor->Serialize(Archive);
+						// FMemoryReader MemoryReader(SavedActor.Data);
+						//
+						// FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
+						// Archive.ArIsSaveGame = true;
+						// Actor->Serialize(Archive);
 
 						ISaveInterface::Execute_LoadActor(Actor);
 					}

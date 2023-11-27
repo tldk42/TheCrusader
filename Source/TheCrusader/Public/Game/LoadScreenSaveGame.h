@@ -25,19 +25,25 @@ struct FSavedActor
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	FName ActorName = FName();
+	UPROPERTY(BlueprintReadWrite)
+	UClass* Class;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite)
+	bool bActor;
+
+	UPROPERTY(BlueprintReadWrite)
+	FName Name = FName();
+
+	UPROPERTY(BlueprintReadWrite)
 	FTransform Transform = FTransform();
 
-	UPROPERTY()
-	TArray<uint8> Bytes;
+	UPROPERTY(BlueprintReadWrite)
+	TArray<uint8> Data;
 };
 
 inline bool operator==(const FSavedActor& Left, const FSavedActor& Right)
 {
-	return Left.ActorName == Right.ActorName;
+	return Left.Name == Right.Name;
 }
 
 USTRUCT(BlueprintType)
@@ -88,7 +94,15 @@ struct FSavedInventory
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TSubclassOf<UItemBase> ItemDataClass;
-	
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FInventoryItem InventoryItem;
+
+	UPROPERTY(BlueprintReadWrite)
+	FName ObjectName = FName();
+
+	UPROPERTY(BlueprintReadWrite)
+	TArray<uint8> Data;
 };
 
 /**
@@ -180,18 +194,7 @@ public:
 	void ActorSaver(AActor* SaveActor);
 
 	UFUNCTION(BlueprintCallable)
-	void ActorPreLoader(AActor* WorldActor, FSavedActor& ActorRecord);
-
-	UFUNCTION(BlueprintCallable)
-	void UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects);
-
-	UFUNCTION(BlueprintCallable)
 	void UObjectSaver(UObject* SaveObject);
-
-	UFUNCTION(BlueprintCallable)
-	void UObjectPreloader(AActor* WorldActor);
-
-	
 
 	UFUNCTION(BlueprintCallable)
 	static void SaveData(UObject* Object, TArray<uint8>& Data);
@@ -200,6 +203,6 @@ public:
 	static void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
 
 
-	FSavedMap GetSavedMapWithMapName(const FString& InMapName);
+	FSavedMap GetSavedMapWithMapName(const FString& InMapName, int& Index);
 	bool HasMap(const FString& InMapName);
 };
