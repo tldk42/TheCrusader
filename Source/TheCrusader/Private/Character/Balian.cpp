@@ -20,8 +20,12 @@
 #include "Character/Horse_Base.h"
 #include "Character/InventoryPreview.h"
 #include "Character/Movement/TCMovementComponent.h"
+#include "Game/TheCrusaderGameMode.h"
 #include "GAS/Attribute/TCAttributeSet.h"
 #include "Item/Weapon/Item_Weapon_Bow.h"
+#include "Kismet/GameplayStatics.h"
+#include "Game/LoadScreenSaveGame.h"
+#include "Player/TCPlayerController.h"
 
 
 ABalian::ABalian(const FObjectInitializer& ObjectInitializer)
@@ -48,14 +52,19 @@ void ABalian::BeginPlay()
 	Super::BeginPlay();
 
 	HUD = Cast<ATC_HUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
-
-	UpdateHealthBar();
 	SpawnPreviewBalian();
+	UpdateHealthBar();
+	UpdateStaminaBar();
+
+	LoadProgress();
 }
 
 void ABalian::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+
+
+	// TODO: Ability 초기화 구분 필요
 
 	// Server only
 	ATCPlayerState* PS = GetPlayerState<ATCPlayerState>();
@@ -64,24 +73,26 @@ void ABalian::PossessedBy(AController* NewController)
 		// Set the ASC on the Server. Clients do this in OnRep_PlayerState()
 		AbilitySystemComponent = Cast<UTCAbilitySystemComponent>(PS->GetAbilitySystemComponent());
 
-		// AI won't have PlayerControllers so we can init again here just to be sure. No harm in initing twice for heroes that have PlayerControllers.
-		PS->GetAbilitySystemComponent()->InitAbilityActorInfo(PS, this);
-
-		// Set the AttributeSetBase for convenience attribute functions
-		AttributeSetBase = PS->GetAttributeSetBase();
-
-		InitializeAttributes();
-
-		AddStartupEffects();
-
-		AddCharacterAbilities();
-
-
-		if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
+		if (!AbilitySystemComponent->bStartupEffectsApplied)
 		{
-			// Set Health/Mana/Stamina to their max. This is only necessary for *Respawn*.
-			AttributeSetBase->SetHealth(GetMaxHealth());
-			AttributeSetBase->SetStamina(GetMaxStamina());
+			// AI won't have PlayerControllers so we can init again here just to be sure. No harm in initing twice for heroes that have PlayerControllers.
+			PS->GetAbilitySystemComponent()->InitAbilityActorInfo(PS, this);
+
+			// Set the AttributeSetBase for convenience attribute functions
+			AttributeSetBase = PS->GetAttributeSetBase();
+
+			InitializeAttributes();
+
+			AddStartupEffects();
+
+			AddCharacterAbilities();
+
+			if (AbilitySystemComponent->GetTagCount(DeadTag) > 0)
+			{
+				// Set Health/Mana/Stamina to their max. This is only necessary for *Respawn*.
+				AttributeSetBase->SetHealth(GetMaxHealth());
+				AttributeSetBase->SetStamina(GetMaxStamina());
+			}
 		}
 	}
 }
@@ -139,6 +150,12 @@ void ABalian::Tick(float DeltaTime)
 	FocusCameraToTarget();
 }
 
+void ABalian::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+                        ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
+{
+	Super::OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
+}
+
 void ABalian::SetIsSprinting(bool bNewIsSprinting)
 {
 	if (bNewIsSprinting != bIsSprinting)
@@ -153,12 +170,12 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 	float WeaponDamage = 0;
 	if (CurrentWeapon)
 	{
-		WeaponDamage -= CurrentWeapon->GetItemData()->WeaponData.BaseDamage;
+		WeaponDamage -= CurrentWeapon->GetItemData()->ItemData.WeaponData.BaseDamage;
 
 		if (Weapon)
 		{
-			const EWeaponType NewType = Weapon->GetItemData()->WeaponData.Type;
-			WeaponDamage += Weapon->GetItemData()->WeaponData.BaseDamage;
+			const EWeaponType NewType = Weapon->GetItemData()->ItemData.WeaponData.Type;
+			WeaponDamage += Weapon->GetItemData()->ItemData.WeaponData.BaseDamage;
 
 			if (CurrentWeapon->bEquipped)
 			{
@@ -175,7 +192,7 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 			CurrentWeapon->Interact(this);
 			CurrentWeapon = nullptr;
 
-			if (CombatMode != EWeaponType::Idle)
+			if (CombatMode != EWeaponType::None)
 			{
 				CombatMode = EWeaponType::Boxer;
 				HUD->UpdateActiveRadialWidget(1);
@@ -186,8 +203,8 @@ void ABalian::SetCurrentWeapon(AItem_Weapon* Weapon)
 	{
 		if (Weapon)
 		{
-			WeaponDamage = Weapon->GetItemData()->WeaponData.BaseDamage;
 			CurrentWeapon = Weapon;
+			WeaponDamage = Weapon->GetItemData()->ItemData.WeaponData.BaseDamage;
 		}
 	}
 
@@ -230,7 +247,7 @@ void ABalian::SetCurrentBow(AItem_Weapon_Bow* Bow)
 
 		if (CurrentBow)
 		{
-			CurrentBow->GetBowComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			CurrentBow->GetSkeletalMeshComp()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
 	}
 
@@ -326,6 +343,135 @@ void ABalian::RemoveMappingContext() const
 	}
 }
 
+int32 ABalian::GetStatPoints_Implementation() const
+{
+	return ISavableCharacter::GetStatPoints_Implementation();
+}
+
+int32 ABalian::GetSkillPoints_Implementation() const
+{
+	return ISavableCharacter::GetSkillPoints_Implementation();
+}
+
+void ABalian::LevelUp_Implementation()
+{
+	ISavableCharacter::LevelUp_Implementation();
+}
+
+void ABalian::ShowSaveWidget_Implementation() const
+{
+	if (ATCPlayerController* PlayerController = Cast<ATCPlayerController>(GetController()))
+	{
+		// PlayerController.ShowSaveWidget()
+	}
+}
+
+void ABalian::HideSaveWidget_Implementation() const
+{
+	if (ATCPlayerController* PlayerController = Cast<ATCPlayerController>(GetController()))
+	{
+		// PlayerController.HideSaveWidget()
+	}
+}
+
+void ABalian::SaveProgress_Implementation(const FName& CheckpointTag)
+{
+	if (const ATheCrusaderGameMode* TCGameMode = Cast<ATheCrusaderGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		if (ULoadScreenSaveGame* SaveData = TCGameMode->RetrieveInGameSaveData())
+		{
+			SaveData->PlayerStartTag = CheckpointTag;
+
+			if (ATCPlayerState* TCPlayerState = Cast<ATCPlayerState>(GetPlayerState()))
+			{
+				// SaveData->Strength = TCPlayerState
+				SaveData->PlayerStartLocation = GetActorLocation();
+				SaveData->Health = AttributeSetBase->GetHealth();
+				SaveData->Stamina = AttributeSetBase->GetStamina();
+				SaveData->AttackPower = AttributeSetBase->GetAttackPower();
+				SaveData->DefensePower = AttributeSetBase->GetDefensePower();
+				SaveData->SkillPower = AttributeSetBase->GetSkillPower();
+				SaveData->bFirstTimeLoadIn = false;
+			}
+
+			if (InventoryComponent)
+			{
+				SaveData->SavedInventory.Empty();
+				SaveData->SavedEquipments.Empty();
+
+				for (const UItemBase* ItemBase : InventoryComponent->GetInventoryContents())
+				{
+					FSavedInventory SavedInventory;
+					// SavedInventory.InventoryItem = ItemBase->ItemData;
+					SavedInventory.ItemDataClass = ItemBase->GetClass();
+					SaveData->SavedInventory.Add(SavedInventory);
+				}
+				for (const auto& EquippedContent : InventoryComponent->GetEquippedContents())
+				{
+					FSavedInventory SavedInventory;
+					// SavedInventory.InventoryItem = EquippedContent.Value->ItemData;
+					SavedInventory.ItemDataClass = EquippedContent.Value->GetClass();
+					SaveData->SavedEquipments.Add(SavedInventory);
+				}
+			}
+
+			const UWorld* World = GetWorld();
+			FString MapName = World->GetMapName();
+			MapName.RemoveFromStart(World->StreamingLevelsPrefix);
+			TCGameMode->SaveWorldState(GetWorld(), MapName);
+
+			TCGameMode->SaveInGameProgressData(SaveData);
+		}
+	}
+}
+
+void ABalian::LoadProgress()
+{
+	if (const ATheCrusaderGameMode* TCGameMode = Cast<ATheCrusaderGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		if (ULoadScreenSaveGame* SaveData = TCGameMode->RetrieveInGameSaveData())
+		{
+			if (SaveData->bFirstTimeLoadIn)
+			{
+				// TODO: 기본 초기 정보로 초기화
+			}
+			else
+			{
+				// TODO: 저장된 정보로 초기화
+				AttributeSetBase->SetHealth(SaveData->Health);
+				AttributeSetBase->SetStamina(SaveData->Stamina);
+				AttributeSetBase->SetAttackPower(SaveData->AttackPower);
+				AttributeSetBase->SetDefensePower(SaveData->DefensePower);
+				AttributeSetBase->SetSkillPower(SaveData->SkillPower);
+				SetActorLocation(SaveData->PlayerStartLocation);
+			}
+
+			if (InventoryComponent)
+			{
+				for (const auto& [ItemDataClass, InventoryItem] : SaveData->SavedInventory)
+				{
+					UItemBase* Item = NewObject<UItemBase>(this, ItemDataClass);
+					Item->ItemData = InventoryItem;
+					Item->Quantity = 1;
+					Item->bIsPickup = true;
+					InventoryComponent->HandleAddItem(Item);
+				}
+
+				for (const auto& [ItemDataClass, InventoryItem] : SaveData->SavedEquipments)
+				{
+					UItemEquipmentBase* Item = NewObject<UItemEquipmentBase>(this, ItemDataClass);
+					Item->ItemData = InventoryItem;
+					Item->Quantity = 1;
+					Item->bIsPickup = true;
+					Item->MoveToEquipment(this);
+				}
+			}
+
+			TCGameMode->LoadWorldState(GetWorld());
+		}
+	}
+}
+
 #pragma region InputBinding
 
 void ABalian::Move(const FInputActionValue& Value)
@@ -392,8 +538,8 @@ void ABalian::FocusCameraToTarget()
 	{
 		if (TargetCharacter)
 		{
-			const float TargetDistance = GetDistanceTo(TargetCharacter);
-			if (!TargetCharacter->IsAlive() || TargetDistance > 600.f)
+			if (const float TargetDistance = GetDistanceTo(TargetCharacter); !TargetCharacter->IsAlive() ||
+				TargetDistance > 1000.f)
 			{
 				ReleaseCamera();
 			}
@@ -401,13 +547,16 @@ void ABalian::FocusCameraToTarget()
 			{
 				const FVector TargetLoc = TargetCharacter->GetActorLocation();
 				const FRotator TargetRot = UKismetMathLibrary::FindLookAtRotation(
-					GetActorLocation(), FVector(TargetLoc.X, TargetLoc.Y, TargetLoc.Z - 150.f));
+					GetActorLocation(), FVector(TargetLoc.X, TargetLoc.Y, TargetLoc.Z - 50.f));
 
-				FRotator Rotator = UKismetMathLibrary::RInterpTo(GetActorRotation(), TargetRot,
-				                                                 GetWorld()->GetDeltaSeconds(), 3.f);
-				GetController()->SetControlRotation(UKismetMathLibrary::MakeRotator(
-					GetActorRotation().Roll, Rotator.Pitch,
-					Rotator.Yaw));
+				const float TargetPitch = FMath::Lerp(GetControlRotation(), TargetRot, .6f).Pitch;
+
+				const FRotator TargetRotator(TargetPitch, TargetRot.Yaw, 0.f);
+				const FRotator Rotator = UKismetMathLibrary::RInterpTo(GetActorRotation(), TargetRotator,
+				                                                       GetWorld()->GetDeltaSeconds(), 4.5f);
+
+
+				GetController()->SetControlRotation(Rotator);
 			}
 		}
 		else
@@ -431,7 +580,7 @@ void ABalian::EquipToHand(const bool bMelee)
 					if (CurrentWeapon)
 						CurrentWeapon->AttachToComponent(
 							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-							CurrentWeapon->GetItemData()->EquipmentData.AttachmentSocket);
+							CurrentWeapon->GetItemData()->ItemData.EquipmentData.AttachmentSocket);
 				});
 
 
@@ -453,7 +602,7 @@ void ABalian::EquipToHand(const bool bMelee)
 					if (CurrentBow)
 						CurrentBow->AttachToComponent(
 							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-							CurrentBow->GetItemData()->EquipmentData.AttachmentSocket);
+							CurrentBow->GetItemData()->ItemData.EquipmentData.AttachmentSocket);
 				});
 
 
@@ -479,15 +628,15 @@ void ABalian::AttachToPelvis(const bool bMelee)
 					if (CurrentWeapon)
 						CurrentWeapon->AttachToComponent(
 							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-							CurrentWeapon->GetItemData()->EquipmentData.DetachmentSocket);
+							CurrentWeapon->GetItemData()->ItemData.EquipmentData.DetachmentSocket);
 				});
 
 
-			PlayAnimMontage(UnEquipMontages[CurrentWeapon->GetItemData()->WeaponData.Type]);
+			PlayAnimMontage(UnEquipMontages[CurrentWeapon->GetItemData()->ItemData.WeaponData.Type]);
 
 			GetMesh()->GetAnimInstance()->Montage_SetBlendingOutDelegate(BlendingOutDelegate,
 			                                                             UnEquipMontages[CurrentWeapon->GetItemData()->
-				                                                             WeaponData.Type]);
+				                                                             ItemData.WeaponData.Type]);
 		}
 	}
 	else
@@ -502,7 +651,7 @@ void ABalian::AttachToPelvis(const bool bMelee)
 					if (CurrentBow)
 						CurrentBow->AttachToComponent(
 							GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
-							CurrentBow->GetItemData()->EquipmentData.DetachmentSocket);
+							CurrentBow->GetItemData()->ItemData.EquipmentData.DetachmentSocket);
 				});
 
 
@@ -519,7 +668,7 @@ void ABalian::SetVisibility_Accessory() const
 	HandArrow->SetVisibility(false);
 	Quiver->SetVisibility(false);
 
-	if (CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type == EWeaponType::OneHandSword)
+	if (CurrentWeapon && CurrentWeapon->GetItemData()->ItemData.WeaponData.Type == EWeaponType::OneHandSword)
 	{
 		SwordZip->SetVisibility(true);
 		LongswordZip->SetVisibility(false);
@@ -534,7 +683,7 @@ void ABalian::SetVisibility_Accessory() const
 			                              TEXT("shield_equip"));
 		}
 	}
-	else if (CurrentWeapon && CurrentWeapon->GetItemData()->WeaponData.Type == EWeaponType::TwoHandSword)
+	else if (CurrentWeapon && CurrentWeapon->GetItemData()->ItemData.WeaponData.Type == EWeaponType::TwoHandSword)
 	{
 		SwordZip->SetVisibility(false);
 		LongswordZip->SetVisibility(true);
@@ -563,12 +712,7 @@ void ABalian::LockCamera()
 		if (const AEnemyBase* Enemy = Cast<AEnemyBase>(TargetCharacter))
 		{
 			bIsTargeting = true;
-			Enemy->HighlightBorder();
-			if (CombatMode == EWeaponType::Idle)
-			{
-				CombatMode = EWeaponType::Boxer;
-				SetAnimLayer();
-			}
+			Enemy->OnLocked();
 			GetCharacterMovement()->bUseControllerDesiredRotation = true;
 			GetCharacterMovement()->bOrientRotationToMovement = false;
 		}
@@ -583,7 +727,7 @@ void ABalian::ReleaseCamera()
 
 	if (const AEnemyBase* Enemy = Cast<AEnemyBase>(TargetCharacter))
 	{
-		Enemy->UnHighlightBorder();
+		Enemy->OnUnLocked();
 	}
 	TargetCharacter = nullptr;
 }
@@ -600,16 +744,21 @@ void ABalian::SpaceBarClick()
 void ABalian::LMBClick()
 {
 	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LMB 클릭"));
-	if (CombatMode == EWeaponType::Bow)
+	if (bCanCounterAttack)
 	{
-		DoShoot();
-	}
-	else if (!bRiding)
-	{
-		DoMeleeAttack();
+		// CounterAttack;
+		bCounterInputTriggered = true;
 	}
 	else
 	{
+		if (CombatMode == EWeaponType::Bow)
+		{
+			DoShoot();
+		}
+		else if (!bRiding)
+		{
+			DoMeleeAttack();
+		}
 	}
 }
 
@@ -624,15 +773,10 @@ void ABalian::RMBClick()
 	else if (!bRiding)
 	{
 		Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Block"));
+		// Apply Parry Effect
 	}
 	if (AbilitySystemComponent->TryActivateAbilitiesByTag(Container))
 	{
-		if (CombatMode == EWeaponType::Idle)
-		{
-			CombatMode = EWeaponType::Boxer;
-			HUD->UpdateActiveRadialWidget(1);
-			SetAnimLayer();
-		}
 		if (CombatMode == EWeaponType::Bow)
 		{
 			HUD->ShowCrosshair();
@@ -653,6 +797,8 @@ void ABalian::RMBCompleted()
 	{
 		Container.AddTag(FGameplayTag::RequestGameplayTag("State.Blocking"));
 	}
+
+	// if (AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag("State.Parry")))
 	AbilitySystemComponent->RemoveActiveEffectsWithGrantedTags(Container);
 }
 
@@ -667,10 +813,13 @@ void ABalian::MMBClick()
 void ABalian::Dodge()
 {
 	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"LAlt 클릭"));
+
+	const FRotator Rotator = GetCharacterMovement()->GetLastInputVector().Rotation();
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
 		FVector::ZeroVector,
-		UKismetMathLibrary::MakeRotFromX(GetCharacterMovement()->GetLastInputVector()));
+		Rotator.IsZero() ? GetActorForwardVector().Rotation() : Rotator
+	);
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Dodge"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
@@ -680,10 +829,11 @@ void ABalian::Roll()
 {
 	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("LAlt 더블 클릭"));
 
+	const FRotator Rotator = GetCharacterMovement()->GetLastInputVector().Rotation();
 	MotionWarpingComponent->AddOrUpdateWarpTargetFromLocationAndRotation(
 		TEXT("Direction"),
 		FVector::ZeroVector,
-		UKismetMathLibrary::MakeRotFromX(GetCharacterMovement()->GetLastInputVector())
+		Rotator.IsZero() ? GetActorForwardVector().Rotation() : Rotator
 	);
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Roll"));
@@ -774,11 +924,16 @@ void ABalian::FoundInteractable(AActor* NewInteractable)
 		if (UKismetMathLibrary::Dot_VectorVector(GetActorForwardVector(), NewInteractable->GetActorForwardVector()) >=
 			0.5f)
 		{
-			TargetCharacter = Cast<AEnemyBase>(NewInteractable);
+			ATCGASCharacter* CurrentFocusingCharacter = Cast<AEnemyBase>(NewInteractable);
+
+			HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+			TargetCharacter = CurrentFocusingCharacter;
 		}
 	}
-
-	HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	else
+	{
+		HUD->UpdateInteractionWidget(&TargetInteractable->InteractableData);
+	}
 
 
 	TargetInteractable->BeginFocus();
@@ -857,6 +1012,7 @@ void ABalian::SpawnPreviewBalian()
 		GetWorld()->SpawnActor<AInventoryPreview>(PreviewCharacterClass,
 		                                          FVector(-24.905944, 7569.893602, 120),
 		                                          FRotator::ZeroRotator);
+	PreviewCharacter->UpdateAllMesh(this);
 }
 
 void ABalian::UpdateInteractionWidget() const
@@ -869,10 +1025,10 @@ void ABalian::UpdateInteractionWidget() const
 
 void ABalian::SetAnimLayer()
 {
-	EWeaponType WeaponType = EWeaponType::Idle;
+	EWeaponType WeaponType = EWeaponType::None;
 	if (CurrentWeapon)
 	{
-		WeaponType = CurrentWeapon->GetItemData()->WeaponData.Type;
+		WeaponType = CurrentWeapon->GetItemData()->ItemData.WeaponData.Type;
 	}
 
 	// 초기화
@@ -907,8 +1063,7 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 	{
 	case EButtonType::Idle:
 		GetCharacterMovement()->bOrientRotationToMovement = false;
-		CombatMode = EWeaponType::Idle;
-		CombatMode = EWeaponType::Idle;
+		CombatMode = EWeaponType::None;
 		break;
 	case EButtonType::Fist:
 		CombatMode = EWeaponType::Boxer;
@@ -916,7 +1071,7 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 	case EButtonType::Sword:
 		if (!CurrentWeapon)
 			return false;
-		CombatMode = CurrentWeapon->GetItemData()->WeaponData.Type;
+		CombatMode = CurrentWeapon->GetItemData()->ItemData.WeaponData.Type;
 		break;
 	case EButtonType::Bow:
 		if (!CurrentBow)
@@ -942,6 +1097,11 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 void ABalian::UpdateHealthBar() const
 {
 	HUD->SetHP(GetHealth() / GetMaxHealth());
+}
+
+void ABalian::UpdateStaminaBar() const
+{
+	HUD->SetStamina(GetStamina() / GetMaxStamina());
 }
 
 

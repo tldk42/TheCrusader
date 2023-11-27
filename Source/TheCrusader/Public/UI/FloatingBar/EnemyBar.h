@@ -17,7 +17,8 @@ class THECRUSADER_API UEnemyBar : public UNPCBarBase
 	GENERATED_BODY()
 
 public:
-	void UpdateHPBar(const float NewValue);
+	void UpdateHP(const float NewValue);
+	void UpdateStamina(const float NewValue);
 
 	void HighlightBorder() const;
 
@@ -32,6 +33,9 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* HPBar;
+
+	UPROPERTY(meta = (BindWidget))
+	UProgressBar* StaminaBar;
 
 	UPROPERTY(meta = (BindWidget))
 	UImage* IconHighlightBorder;

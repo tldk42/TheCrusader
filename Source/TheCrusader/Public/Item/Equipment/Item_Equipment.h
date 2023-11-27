@@ -20,8 +20,6 @@ public:
 		return Cast<UItemEquipmentBase>(ItemRef);
 	}
 
-	virtual void InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity) override;
-
 protected:
 	virtual void BeginPlay() override;
 

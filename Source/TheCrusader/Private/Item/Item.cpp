@@ -6,24 +6,45 @@
 #include "Character/Balian.h"
 #include "Component/Inventory/InventoryComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Game/TheCrusaderGameMode.h"
+#include "Game/LoadScreenSaveGame.h"
 #include "Item/Data/ItemBase.h"
+#include "Kismet/GameplayStatics.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 AItem::AItem()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	OriginRoot = CreateDefaultSubobject<USceneComponent>("RootComponent");
-	SetRootComponent(OriginRoot);
+	SceneComponent = CreateDefaultSubobject<USceneComponent>("Scene Component");
+	SetRootComponent(SceneComponent);
 
-	Mesh = CreateDefaultSubobject<UStaticMeshComponent>("PickupMesh");
-	Mesh->SetupAttachment(OriginRoot);
-	Mesh->SetSimulatePhysics(false);
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>("Static Mesh");
+	StaticMesh->SetupAttachment(SceneComponent);
+	StaticMesh->SetSimulatePhysics(false);
 
-	InteractionCollision = CreateDefaultSubobject<UCapsuleComponent>("InteractionCollision");
-	InteractionCollision->SetupAttachment(Mesh);
-	InteractionCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
-	InteractionCollision->SetCollisionResponseToChannel(ECollisionChannel::ECC_GameTraceChannel2,
-	                                                    ECollisionResponse::ECR_Block);
+	SkeletalMeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>("Skeletal Mesh");
+	SkeletalMeshComponent->SetupAttachment(SceneComponent);
+	SkeletalMeshComponent->SetSimulatePhysics(false);
+
+	InteractionAreaCollision = CreateDefaultSubobject<UCapsuleComponent>("Interaction Collision");
+	InteractionAreaCollision->SetupAttachment(SceneComponent);
+	InteractionAreaCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	InteractionAreaCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel2,
+	                                                        ECR_Block);
+}
+
+bool AItem::ShouldLoadTransform_Implementation()
+{
+	return false;
+}
+
+void AItem::LoadActor_Implementation()
+{
+	if (!bSpawn)
+	{
+		Destroy();
+	}
 }
 
 void AItem::BeginFocus()
@@ -38,17 +59,17 @@ void AItem::EndFocus()
 
 void AItem::BeginInteract()
 {
-	if (Mesh)
+	if (StaticMesh)
 	{
-		Mesh->SetRenderCustomDepth(true);
+		StaticMesh->SetRenderCustomDepth(true);
 	}
 }
 
 void AItem::EndInteract()
 {
-	if (Mesh)
+	if (StaticMesh)
 	{
-		Mesh->SetRenderCustomDepth(false);
+		StaticMesh->SetRenderCustomDepth(false);
 	}
 }
 
@@ -64,24 +85,17 @@ void AItem::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32
 {
 	if (ItemDataTable && !DesiredItemID.IsNone())
 	{
-		const FItemData* ItemData = ItemDataTable->FindRow<FItemData>(DesiredItemID, DesiredItemID.ToString());
-
-		if (ItemData)
+		if (const FInventoryItem* ItemDTHandleRow = ItemDataTable->FindRow<FInventoryItem>(
+			DesiredItemID, DesiredItemID.ToString()))
 		{
 			ItemRef = NewObject<UItemBase>(this, BaseClass);
 
-			ItemRef->ID = ItemData->ItemID;
-			ItemRef->ItemType = ItemData->ItemType;
-			ItemRef->ItemQuality = ItemData->ItemQuality;
-			ItemRef->ItemStatistics = ItemData->ItemStatistics;
-			ItemRef->TextData = ItemData->TextData;
-			ItemRef->NumericData = ItemData->NumericData;
-			ItemRef->AssetData = ItemData->AssetData;
+			ItemRef->ItemData = *ItemDTHandleRow;
 			ItemRef->bIsPickup = true;
 
 			InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
 
-			Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
+			// StaticMesh->SetStaticMesh(ItemDTHandleRow->AssetData.Mesh);
 
 			UpdateInteractableData();
 		}
@@ -94,14 +108,14 @@ void AItem::InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity)
 
 	InQuantity <= 0 ? ItemRef->SetQuantity(1) : ItemRef->SetQuantity(InQuantity);
 
-	Mesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
+	// StaticMesh->SetStaticMesh(ItemToDrop->AssetData.Mesh);
 
 	UpdateInteractableData();
 }
 
 void AItem::DisableInteractionCollision() const
 {
-	InteractionCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	InteractionAreaCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AItem::BeginPlay()
@@ -139,6 +153,13 @@ void AItem::TakePickup(const ABalian* Taker)
 				default: ;
 				}
 
+				if (const ATheCrusaderGameMode* TCGameMode = Cast<ATheCrusaderGameMode>(
+					UGameplayStatics::GetGameMode(this)))
+				{
+					bSpawn = false;
+					TCGameMode->SaveActor(this);
+				}
+
 				UE_LOG(LogTemp, Warning, TEXT("%s"), *AddResult.ResultMessage.ToString());
 			}
 			else
@@ -156,8 +177,8 @@ void AItem::TakePickup(const ABalian* Taker)
 void AItem::UpdateInteractableData()
 {
 	InstanceInteractableData.InteractableType = EInteractableType::Pickup;
-	InstanceInteractableData.Action = ItemRef->TextData.InteractionText;
-	InstanceInteractableData.Name = ItemRef->TextData.Name;
+	InstanceInteractableData.Action = ItemRef->ItemData.TextData.InteractionText;
+	InstanceInteractableData.Name = ItemRef->ItemData.TextData.Name;
 	InstanceInteractableData.Quantity = ItemRef->Quantity;
 	InteractableData = InstanceInteractableData;
 }
@@ -166,19 +187,19 @@ void AItem::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const FName ChangedPropertyName = PropertyChangedEvent.Property
-		                                  ? PropertyChangedEvent.Property->GetFName()
-		                                  : NAME_None;
-
-	if (ChangedPropertyName == GET_MEMBER_NAME_CHECKED(AItem, DesiredItemID))
+	if (const FName ChangedPropertyName = PropertyChangedEvent.Property
+		                                      ? PropertyChangedEvent.Property->GetFName()
+		                                      : NAME_None; ChangedPropertyName == GET_MEMBER_NAME_CHECKED(
+		AItem, DesiredItemID))
 	{
 		if (ItemDataTable)
 		{
 			const FString ContextString{DesiredItemID.ToString()};
 
-			if (const FItemData* ItemData = ItemDataTable->FindRow<FItemData>(DesiredItemID, DesiredItemID.ToString()))
+			if (const FInventoryItem* ItemData = ItemDataTable->FindRow<FInventoryItem>(
+				DesiredItemID, DesiredItemID.ToString()))
 			{
-				Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
+				// StaticMesh->SetStaticMesh(ItemData->AssetData.Mesh);
 			}
 		}
 	}

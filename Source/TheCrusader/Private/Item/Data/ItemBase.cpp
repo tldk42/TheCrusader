@@ -24,14 +24,8 @@ UItemBase* UItemBase::CreateItemCopy() const
 {
 	UItemBase* ItemCopy = NewObject<UItemBase>(StaticClass());
 
-	ItemCopy->ID = this->ID;
 	ItemCopy->Quantity = this->Quantity;
-	ItemCopy->ItemQuality = this->ItemQuality;
-	ItemCopy->ItemType = this->ItemType;
-	ItemCopy->TextData = this->TextData;
-	ItemCopy->NumericData = this->NumericData;
-	ItemCopy->ItemStatistics = this->ItemStatistics;
-	ItemCopy->AssetData = this->AssetData;
+	ItemCopy->ItemData = this->ItemData;
 	ItemCopy->bIsCopy = true;
 
 	return ItemCopy;
@@ -42,7 +36,7 @@ void UItemBase::SetQuantity(const int32 NewQuantity)
 	if (NewQuantity == Quantity)
 		return;
 
-	Quantity = FMath::Clamp(NewQuantity, 0, NumericData.bIsStackable ? NumericData.MaxStackSize : 1);
+	Quantity = FMath::Clamp(NewQuantity, 0, ItemData.NumericData.bIsStackable ? ItemData.NumericData.MaxStackSize : 1);
 
 	if (OwningInventory)
 	{
@@ -73,7 +67,7 @@ AItem* UItemBase::Drop(const int32 NumToRemove)
 			const int32 RemovedQuantity = OwningInventory->RemoveAmountOfItem(this, NumToRemove);
 
 			AItem* PickupItem = GetWorld()->SpawnActor<AItem>(
-				AssetData.ItemClass, HitResult.Location, FRotator::ZeroRotator);
+				ItemData.AssetData.ItemToUse, HitResult.Location, FRotator::ZeroRotator);
 			PickupItem->InitializeDrop(this, RemovedQuantity);
 			return PickupItem;
 		}

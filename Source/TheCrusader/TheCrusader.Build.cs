@@ -6,22 +6,21 @@ public class TheCrusader : ModuleRules
 {
 	public TheCrusader(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(new string[] { "MotionWarping" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "MotionWarping", "MoviePlayer" });
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core", "CoreUObject", "Engine",
-				"InputCore", "EnhancedInput",
+				"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
 				"HeadMountedDisplay", "UMG", "SlateCore", "Slate",
 				"GameplayAbilities", "GameplayTasks", "GameplayTags",
-				"MotionWarping",
+				"MotionWarping", "AIModule", "NavigationSystem"
 			});
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CinematicCamera",
+				"CinematicCamera", "QuestEditor", "QuestEditorDev"
 			});
 	}
 }

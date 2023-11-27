@@ -7,9 +7,14 @@
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
 
-void UEnemyBar::UpdateHPBar(const float NewValue)
+void UEnemyBar::UpdateHP(const float NewValue)
 {
 	HPBar->SetPercent(NewValue);
+}
+
+void UEnemyBar::UpdateStamina(const float NewValue)
+{
+	StaminaBar->SetPercent(NewValue);
 }
 
 void UEnemyBar::NativeConstruct()

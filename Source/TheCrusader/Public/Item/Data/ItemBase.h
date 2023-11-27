@@ -27,13 +27,13 @@ public:
 	virtual UItemBase* CreateItemCopy() const;
 
 	UFUNCTION(Category = "Item")
-	FORCEINLINE float GetItemStackWeight() const { return Quantity * NumericData.Weight; }
+	FORCEINLINE float GetItemStackWeight() const { return Quantity * ItemData.NumericData.Weight; }
 
 	UFUNCTION(Category = "Item")
-	FORCEINLINE float GetItemSingleWeight() const { return NumericData.Weight; }
+	FORCEINLINE float GetItemSingleWeight() const { return ItemData.NumericData.Weight; }
 
 	UFUNCTION(Category = "Item")
-	FORCEINLINE bool IsFullItemStack() const { return Quantity == NumericData.MaxStackSize; }
+	FORCEINLINE bool IsFullItemStack() const { return Quantity == ItemData.NumericData.MaxStackSize; }
 
 	UFUNCTION(Category = "Item")
 	void SetQuantity(const int32 NewQuantity);
@@ -49,7 +49,7 @@ public:
 protected:
 	bool operator==(const FName& OtherID) const
 	{
-		return this->ID == OtherID;
+		return this->ItemData.ItemID == OtherID;
 	}
 
 public:
@@ -57,28 +57,10 @@ public:
 	UInventoryComponent* OwningInventory;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
-	FName ID;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
 	int32 Quantity;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
-	EItemType ItemType;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
-	EItemQuality ItemQuality;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
-	FItemStatistics ItemStatistics;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
-	FItemTextData TextData;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
-	FItemNumericData NumericData;
-
-	UPROPERTY(VisibleAnywhere, Category = "Item")
-	FItemAssetData AssetData;
+	FInventoryItem ItemData;
 
 	bool bIsCopy;
 	bool bIsPickup;

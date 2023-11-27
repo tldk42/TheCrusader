@@ -6,6 +6,7 @@
 #include "TCGASCharacter.h"
 #include "Interfaces/Interactable.h"
 #include "TheCrusader.h"
+#include "Interfaces/SavableCharacter.h"
 #include "Balian.generated.h"
 
 class UTCMovementComponent;
@@ -54,23 +55,38 @@ struct FInteractionData
 };
 
 UCLASS()
-class THECRUSADER_API ABalian : public ATCGASCharacter
+class THECRUSADER_API ABalian : public ATCGASCharacter, public ISavableCharacter
 {
 	GENERATED_BODY()
 
 public:
 	ABalian(const FObjectInitializer& ObjectInitializer);
 
+	void LoadProgress();
+
 	void UpdateInteractionWidget() const;
 	bool UpdateStateByButton(EButtonType BtnType);
 
+	void RemoveMappingContext() const;
+
+#pragma region AI Move TO
 	UFUNCTION(BlueprintImplementableEvent)
 	void MoveToLocation(FVector Location);
-
-	void RemoveMappingContext() const;
+#pragma endregion AI Move TO
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
 	void StealthTakeDown();
+
+#pragma region ISavableCharacter
+
+	virtual int32 GetStatPoints_Implementation() const override;
+	virtual int32 GetSkillPoints_Implementation() const override;
+	virtual void LevelUp_Implementation() override;
+	virtual void ShowSaveWidget_Implementation() const override;
+	virtual void HideSaveWidget_Implementation() const override;
+	virtual void SaveProgress_Implementation(const FName& CheckpointTag) override;
+
+#pragma endregion ISavableCharacter
 
 #pragma region GETTER
 
@@ -139,7 +155,16 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 #pragma endregion Character
 
+#pragma region HandlingAttribute
+
+	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+	                       ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser) override;
+
+
+#pragma endregion HandlingAttribute
+
 	virtual void UpdateHealthBar() const override;
+	virtual void UpdateStaminaBar() const override;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
@@ -154,7 +179,6 @@ protected:
 #pragma region Ability Function
 
 	virtual bool ActivateAbilitiesByWeaponType(EWeaponType Mode, bool bAllowRemoteActivation) override;
-
 
 	UFUNCTION(BlueprintCallable)
 	void LockCamera();
@@ -196,10 +220,6 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Character | Inventory")
 	UInventoryComponent* InventoryComponent;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Character | Inventory", BlueprintReadOnly,
-		meta = (AllowPrivateAccess = true))
-	TMap<EEquipmentPart, UPlayerItemSlot*> ItemSlot;
 
 	float InteractionCheckFrequency;
 
@@ -256,6 +276,12 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
 	bool bRiding = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	bool bCanCounterAttack = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	bool bCounterInputTriggered = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, BlueprintSetter=SetIsSprinting, Meta=(AllowPrivateAccess="true"))
 	bool bIsSprinting = false;

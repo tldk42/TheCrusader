@@ -17,7 +17,7 @@ void UPlayerItemSlot::UpdateItemSlot(UItemBase* Item)
 		return;
 	}
 	ItemReference = Item;
-	ItemIcon->SetBrushFromTexture(Item->AssetData.Icon);
+	ItemIcon->SetBrushFromTexture(Item->ItemData.AssetData.Icon);
 	ItemIcon->SetVisibility(ESlateVisibility::Visible);
 	UInventoryTooltip* InventoryTooltip = Cast<UInventoryTooltip>(GetToolTip());
 	InventoryTooltip->InventorySlotBeingHovered = this;

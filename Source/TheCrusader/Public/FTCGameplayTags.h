@@ -29,6 +29,7 @@ public:
 	FGameplayTag InputTag_MouseWheel;
 	FGameplayTag InputTag_Numpad1;
 	FGameplayTag InputTag_Crouch;
+	FGameplayTag InputTag_RMB_Short;
 
 protected:
 	void AddAllTags(UGameplayTagsManager& Manager);

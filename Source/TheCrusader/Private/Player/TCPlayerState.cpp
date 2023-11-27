@@ -2,6 +2,7 @@
 
 
 #include "Player/TCPlayerState.h"
+#include "Quest/QuestManager.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Attribute/TCAttributeSet.h"
 
@@ -13,6 +14,8 @@ ATCPlayerState::ATCPlayerState()
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
 	AttributeSetBase = CreateDefaultSubobject<UTCAttributeSet>(TEXT("AttributeSetBase"));
+
+	QuestManager = CreateDefaultSubobject<UQuestManager>(TEXT("QuestManager"));
 
 	NetUpdateFrequency = 100.f;
 }
@@ -64,7 +67,9 @@ void ATCPlayerState::BeginPlay()
 	if (AbilitySystemComponent)
 	{
 		// Attribute change callbacks
-		HealthChangedDelegateHandle = AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(AttributeSetBase->GetHealthAttribute()).AddUObject(this, &ThisClass::HealthChanged);
+		HealthChangedDelegateHandle = AbilitySystemComponent->
+		                              GetGameplayAttributeValueChangeDelegate(AttributeSetBase->GetHealthAttribute()).
+		                              AddUObject(this, &ThisClass::HealthChanged);
 
 		// Tag change callbacks
 		// AbilitySystemComponent->RegisterGameplayTagEvent(KnockedDownTag, EGameplayTagEventType::NewOrRemoved).AddUObject(this, &ThisClass::KnockDownTagChanged);

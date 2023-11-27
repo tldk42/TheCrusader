@@ -14,7 +14,7 @@ void UAttachWeapon::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* 
 		{
 			Weapon->AttachToComponent(Player->GetMesh(),
 			                          FAttachmentTransformRules::SnapToTargetIncludingScale,
-			                          Weapon->GetItemData()->EquipmentData.
+			                          Weapon->GetItemData()->ItemData.EquipmentData.
 			                                  DetachmentSocket);
 		}
 	}

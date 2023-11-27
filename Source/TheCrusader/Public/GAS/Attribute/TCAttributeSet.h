@@ -7,7 +7,9 @@
 #include "AttributeSet.h"
 #include "TCAttributeSet.generated.h"
 
-// Uses macros from AttributeSet.h
+/** Uses macros from AttributeSet.h
+ * Attribute에 대한 게터 및 세터 함수가 자동 생성
+ */
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
 GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
@@ -22,7 +24,7 @@ class THECRUSADER_API UTCAttributeSet : public UAttributeSet
 
 public:
 	UTCAttributeSet();
-	
+
 	// Current Health, when 0 we expect owner to die unless prevented by an ability. Capped by MaxHealth.
 	// Positive changes can directly use this.
 	// Negative changes to Health should go through Damage meta attribute.
@@ -56,14 +58,18 @@ public:
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, StaminaRegenRate)
 
 	/** AttackPower of the attacker is multiplied by the base Damage to reduce health, so 1.0 means no bonus */
-	UPROPERTY(BlueprintReadOnly, Category = "Damage", ReplicatedUsing = OnRep_AttackPower)
+	UPROPERTY(BlueprintReadOnly, Category = "Attribute", ReplicatedUsing = OnRep_AttackPower)
 	FGameplayAttributeData AttackPower;
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, AttackPower)
 
 	/** Base Damage is divided by DefensePower to get actual damage done, so 1.0 means no bonus */
-	UPROPERTY(BlueprintReadOnly, Category = "Damage", ReplicatedUsing = OnRep_DefensePower)
+	UPROPERTY(BlueprintReadOnly, Category = "Attribute", ReplicatedUsing = OnRep_DefensePower)
 	FGameplayAttributeData DefensePower;
 	ATTRIBUTE_ACCESSORS(UTCAttributeSet, DefensePower)
+
+	UPROPERTY(BlueprintReadOnly, Category = "Attribute", ReplicatedUsing = OnRep_SkillPower)
+	FGameplayAttributeData SkillPower;
+	ATTRIBUTE_ACCESSORS(UTCAttributeSet, SkillPower)
 
 	/** Damage is a 'temporary' attribute used by the DamageExecution to calculate final damage, which then turns into -Health */
 	UPROPERTY(BlueprintReadOnly, Category = "Damage")
@@ -104,6 +110,9 @@ protected:
 
 	UFUNCTION()
 	virtual void OnRep_DefensePower(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	virtual void OnRep_SkillPower(const FGameplayAttributeData& OldValue);
 
 private:
 	FGameplayTag HitDirectionFrontTag;

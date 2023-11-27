@@ -7,6 +7,7 @@
 #include "GameplayAbilitySpecHandle.h"
 #include "GameplayTagContainer.h"
 #include "TCCharacterBase.h"
+#include "TheCrusader.h"
 #include "Anim/NotifyState/JumpSection.h"
 #include "TCGASCharacter.generated.h"
 
@@ -25,7 +26,9 @@ enum class ETCHitReactDirection : uint8
 	Left,
 	Front,
 	Right,
-	Back
+	Back,
+	Up,
+	Down
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHitReactDelegate, ETCHitReactDirection, Direction);
@@ -79,7 +82,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable)
-	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint) const;
+	ETCHitReactDirection GetHitReactDirection(const FVector& ImpactPoint);
 
 	UFUNCTION(BlueprintCallable)
 	UArrowComponent* GetWarpingInfo(FVector HitLocation, bool& IsTooFar) const;
@@ -94,6 +97,8 @@ public:
 
 	FORCEINLINE bool IsTargeting() const { return bIsTargeting; }
 
+	FORCEINLINE ECharacterState GetCharacterState() const { return CharacterState; }
+
 #pragma endregion GETTER
 
 #pragma region SETTER
@@ -102,6 +107,9 @@ public:
 	FORCEINLINE void SetComboPeriod(const bool Value) { bEnableComboPeriod = Value; }
 	FORCEINLINE void SetJumpSectionNotify(UJumpSection* JumpSection) { JumpSectionNotify = JumpSection; }
 	FORCEINLINE void SetTargetingCharacter(ATCGASCharacter* Target) { TargetCharacter = Target; }
+
+	UFUNCTION(BlueprintCallable, Category = "StateChanged")
+	virtual void ChangeCharacterState(const ECharacterState NewState);
 
 #pragma endregion SETTER
 
@@ -118,6 +126,8 @@ public:
 	virtual void FinishDying();
 
 protected:
+	virtual void BeginPlay() override;
+	
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
 	void PlayMantleMontage(UAnimMontage* MontageToPlay);
 
@@ -133,6 +143,9 @@ protected:
 	virtual void InitializeAttributes();
 	virtual void AddStartupEffects();
 
+	UFUNCTION(BlueprintCallable)
+	virtual bool TryActivateAbilityByTag(const FGameplayTagContainer& TagContainer) const;
+
 #pragma region Handle Damage & Health
 	UFUNCTION(BlueprintCallable)
 	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo,
@@ -142,7 +155,11 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	virtual void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 
+	UFUNCTION(BlueprintCallable)
+	virtual void OnStaminaChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+
 	virtual void UpdateHealthBar() const;
+	virtual void UpdateStaminaBar() const;
 
 	virtual void Die();
 
@@ -153,6 +170,7 @@ protected:
 	                          const struct FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,
 	                          AActor* DamageCauser);
 	virtual void HandleHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+	virtual void HandleStaminaChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
 #pragma endregion Handle Damage & Health
 
 protected:
@@ -161,13 +179,13 @@ protected:
 	UPROPERTY()
 	class UTCAttributeSet* AttributeSetBase;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	UArrowComponent* ForwardArrow;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	UArrowComponent* BackArrow;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	UArrowComponent* LeftArrow;
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	UArrowComponent* RightArrow;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
@@ -205,34 +223,40 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Crusader|Abilities")
 	TSubclassOf<UGameplayEffect> HUDMode;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	UAnimMontage* DeadMontage;
+	UPROPERTY(BlueprintReadWrite, Category = "Character | State")
+	ECharacterState CharacterState = ECharacterState::Idle;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader|Melee")
-	bool bEnableComboPeriod;
+	UPROPERTY(BlueprintReadWrite, Category = "Character | State")
+	EWeaponType CombatMode;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadWrite, Category = "Character | State")
 	bool bIsTargeting = false;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader|Melee")
-	UJumpSection* JumpSectionNotify;
+	UPROPERTY(BlueprintReadWrite, Category = "Character | State")
+	float AimingDuration = 0.f;
 
-	UPROPERTY(BlueprintReadWrite, Category = "Character | Target", meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadWrite, Category = "Character | Target")
 	ATCGASCharacter* TargetCharacter;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon")
 	AItem_Weapon* CurrentWeapon;
-	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon", BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	UPROPERTY(BlueprintReadOnly, Category = "Character | Weapon")
 	AItem_Weapon_Bow* CurrentBow;
-
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	EWeaponType CombatMode;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Character | Montage")
 	FName CurrentSectionName;
 
-	UPROPERTY(BlueprintReadWrite)
-	float AimingDuration = 0.f;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader | Montage")
+	UJumpSection* JumpSectionNotify;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Crusader | Montage")
+	bool bEnableComboPeriod;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character | Montage | Asset")
+	UAnimMontage* DeadMontage;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Character | Montage | HitReaction")
+	ETCHitReactDirection HitReactDirection;
 
 	friend UTCAttributeSet;
 };

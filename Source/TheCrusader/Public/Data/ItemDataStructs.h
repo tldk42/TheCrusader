@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
-#include "TheCrusader.h"
 #include "ItemDataStructs.generated.h"
 
+class AItem_Interaction_Actor;
 class AItem;
 
 UENUM(BlueprintType)
@@ -24,7 +24,6 @@ enum class EItemType : uint8
 {
 	Armor,
 	Weapon,
-	Shield,
 	Spell,
 	Consumable,
 	Quest,
@@ -34,46 +33,63 @@ enum class EItemType : uint8
 UENUM(BlueprintType)
 enum class EEquipmentPart : uint8
 {
+	None,
+	Weapon,
+	Bow,
+	Hair,
 	Head,
 	Torso,
 	Arm,
 	Legs,
 	Feet,
-	Hair,
-	Weapon,
 	Shield,
+};
+
+UENUM(BlueprintType, Blueprintable)
+enum class EWeaponType : uint8
+{
+	None,
+	Boxer,
+	TwoHandSword,
+	OneHandSword,
+	SwordWithShield,
+	Spear,
+	Hammer,
 	Bow
 };
 
-USTRUCT()
+/** Item Statistics
+ * Damaged value
+ * Restore Value
+ * Sell Value
+ */
+USTRUCT(BlueprintType)
 struct FItemStatistics
 {
 	GENERATED_BODY()
 
-	FItemStatistics()
-		: DamageValue(0), RestorationAmount(0), SellValue(0)
-	{
-	}
-
 	UPROPERTY(EditAnywhere)
-	float DamageValue;
+	float DamageValue = 0;
 	UPROPERTY(EditAnywhere)
-	float RestorationAmount;
+	float RestorationAmount = 0;
 	UPROPERTY(EditAnywhere)
-	float SellValue;
+	float SellValue = 0;
 };
 
-USTRUCT()
-struct FEquipmentData
+/** Attachment Data
+ * Equip Socket Name
+ * UnEquip Socket Name
+ */
+USTRUCT(BlueprintType)
+struct FAttachmentData
 {
 	GENERATED_BODY()
 
-	FEquipmentData(): ArmorRatings(0)
-	{
-	}
+	UPROPERTY(EditAnywhere)
+	int8 RequiredLevel = 0.f;
 
 	UPROPERTY(EditAnywhere)
-	float ArmorRatings;
+	EEquipmentPart EquipmentPart;
 
 	UPROPERTY(EditAnywhere)
 	FName AttachmentSocket;
@@ -82,14 +98,34 @@ struct FEquipmentData
 	FName DetachmentSocket;
 };
 
-USTRUCT()
-struct FItemTextData
+/** Numeric Data
+ * Weight
+ * StackSize
+ * Can Stack
+ */
+USTRUCT(BlueprintType)
+struct FItemNumericData
 {
 	GENERATED_BODY()
 
-	FItemTextData()
-	{
-	}
+	UPROPERTY(EditAnywhere)
+	float Weight = 0;
+	UPROPERTY(EditAnywhere)
+	int32 MaxStackSize = 1;
+	UPROPERTY(EditAnywhere)
+	bool bIsStackable = false;
+};
+
+/** Item Text Data
+ * Name Text,
+ * Description Text,
+ * Interaction Text,
+ * Usage Text
+ */
+USTRUCT(BlueprintType)
+struct FItemTextData
+{
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
 	FText Name;
@@ -101,70 +137,63 @@ struct FItemTextData
 	FText UsageText;
 };
 
-USTRUCT()
-struct FItemNumericData
-{
-	GENERATED_BODY()
-
-	FItemNumericData() : Weight(0), MaxStackSize(0), bIsStackable(false)
-	{
-	}
-
-	UPROPERTY(EditAnywhere)
-	float Weight;
-	UPROPERTY(EditAnywhere)
-	int32 MaxStackSize;
-	UPROPERTY(EditAnywhere)
-	bool bIsStackable;
-};
-
-USTRUCT()
+/** Item Asset Data
+ * Icon Texture
+ * Actual Class
+ */
+USTRUCT(BlueprintType)
 struct FItemAssetData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere)
 	UTexture2D* Icon;
+
 	UPROPERTY(EditAnywhere)
-	UStaticMesh* Mesh;
+	TSubclassOf<AItem_Interaction_Actor> ItemToInteract;
+
 	UPROPERTY(EditAnywhere)
-	USkeletalMesh* AnimatedMesh;
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<AItem> ItemClass;
+	TSubclassOf<AItem> ItemToUse;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	USkeletalMesh* SkeletalMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	UStaticMesh* InteractionMesh;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FWeaponData
 {
 	GENERATED_BODY()
-
-	FWeaponData(): Type(), BaseDamage(0), Strength(0), RequiredLevel(0)
-	{
-	}
 
 	UPROPERTY(EditAnywhere)
 	EWeaponType Type;
 
 	UPROPERTY(EditAnywhere)
-	float BaseDamage;
+	float BaseDamage = 1.f;
 
 	UPROPERTY(EditAnywhere)
-	float Strength;
-
-	UPROPERTY(EditAnywhere)
-	int8 RequiredLevel;
+	float Strength = 1.f;
 };
 
-USTRUCT()
-struct FItemData : public FTableRowBase
+USTRUCT(BlueprintType)
+struct FInventoryItem : public FTableRowBase
 {
 	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Item Data")
+	FDataTableRowHandle TableRow;
+
+	UPROPERTY(EditAnywhere, Category = "Item Data")
+	EItemType ItemType;
 
 	UPROPERTY(EditAnywhere, Category = "Item Data")
 	FName ItemID;
 
 	UPROPERTY(EditAnywhere, Category = "Item Data")
-	EItemType ItemType;
+	FItemAssetData AssetData;
 
 	UPROPERTY(EditAnywhere, Category = "Item Data")
 	EItemQuality ItemQuality;
@@ -173,32 +202,52 @@ struct FItemData : public FTableRowBase
 	FItemStatistics ItemStatistics;
 
 	UPROPERTY(EditAnywhere, Category = "Item Data")
-	FItemTextData TextData;
-
-	UPROPERTY(EditAnywhere, Category = "Item Data")
 	FItemNumericData NumericData;
 
 	UPROPERTY(EditAnywhere, Category = "Item Data")
-	FItemAssetData AssetData;
-};
-
-USTRUCT()
-struct FItemEquipmentData : public FItemData
-{
-	GENERATED_BODY()
-
+	FItemTextData TextData;
+	
 	UPROPERTY(EditAnywhere, Category = "Equipment Data")
-	FEquipmentData EquipmentData;
-
-	UPROPERTY(EditAnywhere, Category = "Equipment Data")
-	EEquipmentPart EquipmentPart;
-};
-
-USTRUCT()
-struct FItemWeaponData : public FItemEquipmentData
-{
-	GENERATED_BODY()
+	FAttachmentData EquipmentData;
 
 	UPROPERTY(EditAnywhere, Category = "Weapon Data")
 	FWeaponData WeaponData;
+};
+
+USTRUCT(BlueprintType)
+struct FInventory_Equipment : public FTableRowBase
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Equipment Data")
+	FAttachmentData EquipmentData;
+
+	UPROPERTY(EditAnywhere, Category = "Equipment Data")
+	USkeletalMesh* SkeletalMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Equipment Data")
+	UStaticMesh* InteractionMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Equipment Data")
+	float DefenseRate = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FMyStruct
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	FWeaponData WeaponData;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	FAttachmentData EquipmentData;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	USkeletalMesh* SkeletalMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Weapon Data")
+	UStaticMesh* InteractionMesh;
 };

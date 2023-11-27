@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagContainer.h"
+#include "Data/ItemDataStructs.h"
 #include "GameFramework/SaveGame.h"
 #include "LoadScreenSaveGame.generated.h"
 
+class UItemBase;
+struct FInventoryItem;
 class UGameplayAbility;
 
 UENUM(BlueprintType)
@@ -17,7 +20,7 @@ enum ESaveSlotStatus
 	Taken
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FSavedActor
 {
 	GENERATED_BODY()
@@ -37,7 +40,7 @@ inline bool operator==(const FSavedActor& Left, const FSavedActor& Right)
 	return Left.ActorName == Right.ActorName;
 }
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FSavedMap
 {
 	GENERATED_BODY()
@@ -78,8 +81,18 @@ inline bool operator==(const FSavedAbility& Left, const FSavedAbility* Right)
 	return Left.AbilityTag.MatchesTagExact(Right->AbilityTag);
 }
 
+USTRUCT(BlueprintType)
+struct FSavedInventory
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	TSubclassOf<UItemBase> ItemDataClass;
+	
+};
+
 /**
- * @link: https://docs.unrealengine.com/5.3/ko/saving-and-loading-your-game-in-unreal-engine/
+ * @ref https://docs.unrealengine.com/5.3/ko/saving-and-loading-your-game-in-unreal-engine/
  */
 UCLASS()
 class THECRUSADER_API ULoadScreenSaveGame : public USaveGame
@@ -112,15 +125,24 @@ public:
 	FName PlayerStartTag;
 
 	UPROPERTY()
+	FVector PlayerStartLocation;
+
+	UPROPERTY()
 	TEnumAsByte<ESaveSlotStatus> SaveSlotStatus = ESaveSlotStatus::Vacant;
 
 	/** 첫 플레이 & 로드*/
 	UPROPERTY()
-	bool bFirstTimeLoadIn;
+	bool bFirstTimeLoadIn = true;
 
 	//========= Player =======================/
 	UPROPERTY()
 	int32 PlayerLevel = 1;
+
+	UPROPERTY()
+	float Health = 0;
+
+	UPROPERTY()
+	float Stamina = 0;
 
 	UPROPERTY()
 	int32 XP = 0;
@@ -129,7 +151,13 @@ public:
 	int32 AttributePoints = 0;
 
 	UPROPERTY()
-	float Strength = 0;
+	float AttackPower = 0;
+
+	UPROPERTY()
+	float DefensePower = 0;
+
+	UPROPERTY()
+	float SkillPower = 0;
 
 	//========= Abilities =======================/
 
@@ -138,6 +166,39 @@ public:
 
 	UPROPERTY()
 	TArray<FSavedMap> SavedMaps;
+
+	UPROPERTY()
+	TArray<FSavedInventory> SavedInventory;
+
+	UPROPERTY()
+	TArray<FSavedInventory> SavedEquipments;
+
+	UFUNCTION(BlueprintCallable)
+	void ActorArraySavor(UPARAM(ref) TArray<AActor*>& SaveActors);
+
+	UFUNCTION(BlueprintCallable)
+	void ActorSaver(AActor* SaveActor);
+
+	UFUNCTION(BlueprintCallable)
+	void ActorPreLoader(AActor* WorldActor, FSavedActor& ActorRecord);
+
+	UFUNCTION(BlueprintCallable)
+	void UObjectArraySaver(UPARAM(ref) TArray<UObject*>& SaveObjects);
+
+	UFUNCTION(BlueprintCallable)
+	void UObjectSaver(UObject* SaveObject);
+
+	UFUNCTION(BlueprintCallable)
+	void UObjectPreloader(AActor* WorldActor);
+
+	
+
+	UFUNCTION(BlueprintCallable)
+	static void SaveData(UObject* Object, TArray<uint8>& Data);
+
+	UFUNCTION(BlueprintCallable)
+	static void LoadData(UObject* Object, UPARAM(ref) TArray<uint8>& Data);
+
 
 	FSavedMap GetSavedMapWithMapName(const FString& InMapName);
 	bool HasMap(const FString& InMapName);

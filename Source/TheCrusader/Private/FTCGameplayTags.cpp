@@ -28,6 +28,7 @@ void FTCGameplayTags::AddAllTags(UGameplayTagsManager& Manager)
 	AddTag(InputTag_MouseWheel, "InputTag.MouseWheel", "Mouse Wheel");
 	AddTag(InputTag_Numpad1, "InputTag.Num1", "NumPad1");
 	AddTag(InputTag_Crouch, "InputTag.Crouch", "Keyboard C");
+	AddTag(InputTag_RMB_Short, "InputTag.RMBShort", "RMB Short");
 }
 
 void FTCGameplayTags::AddTag(FGameplayTag& OutTag, const ANSICHAR* TagName, const ANSICHAR* TagComment)

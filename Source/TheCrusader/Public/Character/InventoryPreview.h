@@ -20,6 +20,9 @@ public:
 	virtual void AttachEquipment(const EEquipmentPart EquipmentPart, const UItemEquipmentBase* ItemToEquip) override;
 	virtual void DetachEquipment(EEquipmentPart EquipmentPart) override;
 
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void UpdateAllMesh(ABalian* Source);
+
 protected:
 	virtual void BeginPlay() override;
 

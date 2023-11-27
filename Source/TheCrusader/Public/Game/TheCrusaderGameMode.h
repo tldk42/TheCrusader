@@ -25,6 +25,7 @@ public:
 	void SaveSlotData(UMVVM_LoadSlot* LoadSlot, int8 SlotIndex) const;
 	void SaveInGameProgressData(ULoadScreenSaveGame* SaveObject) const;
 	void SaveWorldState(UWorld* World, const FString& DestinationMapAssetName = FString("")) const;
+	void SaveActor(AActor* Actor) const;
 	
 	void LoadWorldState(UWorld* World) const;
 

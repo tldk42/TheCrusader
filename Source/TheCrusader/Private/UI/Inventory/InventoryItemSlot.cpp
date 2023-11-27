@@ -28,7 +28,7 @@ void UInventoryItemSlot::NativeConstruct()
 
 	if (ItemReference)
 	{
-		switch (ItemReference->ItemQuality)
+		switch (ItemReference->ItemData.ItemQuality)
 		{
 		case EItemQuality::Shoddy:
 			ItemBorder->SetBrushColor(FLinearColor::Gray);
@@ -47,9 +47,9 @@ void UInventoryItemSlot::NativeConstruct()
 			break;
 		default: ;
 		}
-		ItemIcon->SetBrushFromTexture(ItemReference->AssetData.Icon);
+		ItemIcon->SetBrushFromTexture(ItemReference->ItemData.AssetData.Icon);
 
-		if (ItemReference->NumericData.bIsStackable)
+		if (ItemReference->ItemData.NumericData.bIsStackable)
 		{
 			ItemQuantity->SetText(FText::AsNumber(ItemReference->Quantity));
 		}

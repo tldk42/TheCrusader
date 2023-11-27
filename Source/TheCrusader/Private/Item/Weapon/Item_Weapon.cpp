@@ -18,7 +18,7 @@ AItem_Weapon::AItem_Weapon()
 	ItemQuantity = 1;
 
 	CapsuleComponent = CreateDefaultSubobject<UCapsuleComponent>("Capsule");
-	CapsuleComponent->SetupAttachment(OriginRoot);
+	CapsuleComponent->SetupAttachment(SceneComponent);
 
 	CapsuleComponent->OnComponentBeginOverlap.AddDynamic(this, &ThisClass::OnBeginOverlap);
 	CapsuleComponent->OnComponentEndOverlap.AddDynamic(this, &ThisClass::OnEndOverlap);
@@ -70,8 +70,8 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 				IgnoreActors.Add(OwnerPlayer);
 
 
-				UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), Mesh->GetSocketLocation("start"),
-				                                                  Mesh->GetSocketLocation("end"), 50.f,
+				UKismetSystemLibrary::SphereTraceSingleForObjects(GetWorld(), StaticMesh->GetSocketLocation("start"),
+				                                                  StaticMesh->GetSocketLocation("end"), 50.f,
 				                                                  ObjectTypesArray,
 				                                                  false, IgnoreActors,
 				                                                  EDrawDebugTrace::ForOneFrame, HitResult, true);
@@ -103,35 +103,35 @@ void AItem_Weapon::OnEndOverlap(class UPrimitiveComponent* OverlappedComp, class
 	bAttacked = false;
 }
 
-void AItem_Weapon::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity)
-{
-	if (ItemDataTable && !DesiredItemID.IsNone())
-	{
-		const FItemWeaponData* ItemData = ItemDataTable->FindRow<FItemWeaponData>(
-			DesiredItemID, DesiredItemID.ToString());
-		if (ItemData)
-		{
-			UItemWeaponBase* ItemBase = NewObject<UItemWeaponBase>(this, BaseClass);
-
-			ItemBase->ID = ItemData->ItemID;
-			ItemBase->ItemType = ItemData->ItemType;
-			ItemBase->ItemQuality = ItemData->ItemQuality;
-			ItemBase->ItemStatistics = ItemData->ItemStatistics;
-			ItemBase->TextData = ItemData->TextData;
-			ItemBase->NumericData = ItemData->NumericData;
-			ItemBase->AssetData = ItemData->AssetData;
-			ItemBase->EquipmentData = ItemData->EquipmentData;
-			ItemBase->EquipmentPart = ItemData->EquipmentPart;
-			ItemBase->WeaponData = ItemData->WeaponData;
-			ItemBase->bIsPickup = true;
-
-			InQuantity <= 0 ? ItemBase->SetQuantity(1) : ItemBase->SetQuantity(InQuantity);
-
-			ItemRef = ItemBase;
-
-			Mesh->SetStaticMesh(ItemData->AssetData.Mesh);
-
-			UpdateInteractableData();
-		}
-	}
-}
+// void AItem_Weapon::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity)
+// {
+// 	if (ItemDataTable && !DesiredItemID.IsNone())
+// 	{
+// 		const FItemWeaponData* ItemData = ItemDataTable->FindRow<FItemWeaponData>(
+// 			DesiredItemID, DesiredItemID.ToString());
+// 		if (ItemData)
+// 		{
+// 			UItemWeaponBase* ItemBase = NewObject<UItemWeaponBase>(this, BaseClass);
+//
+// 			ItemBase->ID = ItemData->ItemID;
+// 			ItemBase->ItemType = ItemData->ItemType;
+// 			ItemBase->ItemQuality = ItemData->ItemQuality;
+// 			ItemBase->ItemStatistics = ItemData->ItemStatistics;
+// 			ItemBase->TextData = ItemData->TextData;
+// 			ItemBase->NumericData = ItemData->NumericData;
+// 			ItemBase->AssetData = ItemData->AssetData;
+// 			ItemBase->EquipmentData = ItemData->EquipmentData;
+// 			ItemBase->EquipmentPart = ItemData->EquipmentPart;
+// 			ItemBase->WeaponData = ItemData->WeaponData;
+// 			ItemBase->bIsPickup = true;
+//
+// 			InQuantity <= 0 ? ItemBase->SetQuantity(1) : ItemBase->SetQuantity(InQuantity);
+//
+// 			ItemRef = ItemBase;
+//
+// 			StaticMesh->SetStaticMesh(ItemData->AssetData.Mesh);
+//
+// 			UpdateInteractableData();
+// 		}
+// 	}
+// }

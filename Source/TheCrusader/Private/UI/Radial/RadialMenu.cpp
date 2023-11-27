@@ -2,11 +2,11 @@
 
 #include "UI/Radial/RadialMenu.h"
 
-#include "TheCrusaderGameMode.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Character/Balian.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Game/TheCrusaderGameMode.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include "UI/Radial/RadialButtonBase.h"
@@ -33,8 +33,11 @@ void URadialMenu::UpdateActiveBar()
 		{
 			if (Player->UpdateStateByButton(ActivatedBtn->ButtonType))
 			{
-				RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
-				CachedIndex = SelectedIndex;
+				if (ActivatedBtn->ButtonType != EButtonType::Horse)
+				{
+					RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
+					CachedIndex = SelectedIndex;
+				}
 			}
 		}
 	}

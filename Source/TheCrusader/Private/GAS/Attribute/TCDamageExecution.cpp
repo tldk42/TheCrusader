@@ -41,6 +41,7 @@ void UTCDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecu
 	UAbilitySystemComponent* TargetAbilitySystemComponent = ExecutionParams.GetTargetAbilitySystemComponent();
 	UAbilitySystemComponent* SourceAbilitySystemComponent = ExecutionParams.GetSourceAbilitySystemComponent();
 
+
 	AActor* SourceActor = SourceAbilitySystemComponent
 		                      ? SourceAbilitySystemComponent->GetAvatarActor_Direct()
 		                      : nullptr;
@@ -83,18 +84,49 @@ void UTCDamageExecution::Execute_Implementation(const FGameplayEffectCustomExecu
 			Damage *= 1.5f;
 		}
 	}
+	const float DamageDone = Damage * AttackPower / DefensePower;
 
-	if (const float DamageDone = Damage * AttackPower / DefensePower; DamageDone > 0.f)
+	if (TargetTags->HasTagExact(FGameplayTag::RequestGameplayTag("State.Parry")))
+	{
+		FGameplayEventData PayloadData;
+		PayloadData.Target = SourceActor;
+		PayloadData.Instigator = TargetActor;
+
+		if (ExecutionParams.GetOwningSpec().GetEffectContext().GetHitResult())
+		{
+			PayloadData.TargetData = UAbilitySystemBlueprintLibrary::AbilityTargetDataFromHitResult(
+				*ExecutionParams.GetOwningSpec().GetEffectContext().GetHitResult());
+		}
+
+
+		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor,
+		                                                         FGameplayTag::RequestGameplayTag(
+			                                                         "Ability.Action.Parry"), PayloadData);
+	}
+	else
 	{
 		OutExecutionOutput.AddOutputModifier(
 			FGameplayModifierEvaluatedData(DamageStatistic().DamageProperty, EGameplayModOp::Additive, DamageDone));
 	}
-	// Block중이라면 Attribute는 건들지 않고 큐만 진행
-	else if (TargetTags->HasTagExact(FGameplayTag::RequestGameplayTag("State.Blocking")))
-	{
-		const FGameplayEventData PayloadData;
-		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor,
-		                                                         FGameplayTag::RequestGameplayTag(
-			                                                         "Event.Montage.BlockedHit"), PayloadData);
-	}
+
+	// if (DamageDone > 0.f)
+	// {
+	// }
+	//
+	// // Block중이라면 Attribute는 건들지 않고 큐만 진행
+	// else if (TargetTags->HasTagExact(FGameplayTag::RequestGameplayTag("State.Blocking")))
+	// {
+	// 	if (TargetTags->HasTagExact(FGameplayTag::RequestGameplayTag("State.Parry")))
+	// 	{
+	// 		OutExecutionOutput.AddOutputModifier(
+	// 			FGameplayModifierEvaluatedData(DamageStatistic().DamageProperty, EGameplayModOp::Additive, 0.f));
+	// 	}
+	// 	else
+	// 	{
+	// 		const FGameplayEventData PayloadData;
+	// 		UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(TargetActor,
+	// 		                                                         FGameplayTag::RequestGameplayTag(
+	// 			                                                         "Event.Montage.BlockedHit"), PayloadData);
+	// 	}
+	// }
 }

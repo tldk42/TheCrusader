@@ -34,7 +34,7 @@ static FRotator BlendRots(FRotator A, float AWeight, FRotator B, float BWeight)
 void FActiveTCCameraModeInstance::UpdateCamera(float DeltaTime, FTViewTarget& OutVT)
 {
 	// 아직 CineCam은 안씀 필요하면 변수 생성
-	CameraMode->UpdateCamera(ViewTarget, (CameraMode->bUseCineCam ? nullptr : nullptr), DeltaTime, OutVT);
+	CameraMode->UpdateCamera(ViewTarget, (CameraMode->bUseCineCam ? CineCameraComponent : nullptr), DeltaTime, OutVT);
 }
 
 ATCPlayerCameraManager::ATCPlayerCameraManager(const FObjectInitializer& ObjectInitializer)
@@ -519,6 +519,18 @@ int32 ATCPlayerCameraManager::FindOrCreateCameraModeInstance(TSubclassOf<UTCCame
 	NewInstance.CameraModeClass = CameraModeClass;
 	NewInstance.ViewTarget = InViewTarget;
 	NewInstance.CameraMode = NewCameraMode;
+	
+	UCineCameraComponent* NewCineComp;
+	NewCineComp = NewObject<UCineCameraComponent>(this);
+	NewCineComp->AttachToComponent(GetTransformComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
+	NewCineComp->SetRelativeTransform(FTransform::Identity);
+	NewCineComp->SetConstraintAspectRatio(false);
+	if (NewCameraMode->bOverrideFilmback)
+	{
+		NewCineComp->Filmback = NewCameraMode->CineCam_FilmbackOverride;
+	}
+
+	NewInstance.CineCameraComponent = NewCineComp;
 
 	int32 NewIdx = CameraModeInstances.Emplace(NewInstance);
 	return NewIdx;

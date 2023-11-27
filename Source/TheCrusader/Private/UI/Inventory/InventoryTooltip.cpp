@@ -15,12 +15,11 @@ void UInventoryTooltip::UpdateToolTip()
 	{
 		if (const UItemBase* ItemBeingHovered = InventorySlotBeingHovered->GetItemReference())
 		{
-			switch (ItemBeingHovered->ItemType)
+			switch (ItemBeingHovered->ItemData.ItemType)
 			{
 				{
 				case EItemType::Armor:
-				case EItemType::Shield:
-					ItemType->SetText(UEnum::GetDisplayValueAsText(ItemBeingHovered->ItemType));
+					ItemType->SetText(UEnum::GetDisplayValueAsText(ItemBeingHovered->ItemData.ItemType));
 					UsageText->SetVisibility(ESlateVisibility::Collapsed);
 					MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
 					StackWeight->SetVisibility(ESlateVisibility::Collapsed);
@@ -29,10 +28,10 @@ void UInventoryTooltip::UpdateToolTip()
 				{
 				case EItemType::Weapon:
 					const UItemWeaponBase* Weapon = Cast<UItemWeaponBase>(ItemBeingHovered);
-					ItemType->SetText(UEnum::GetDisplayValueAsText(Weapon->WeaponData.Type));
+					ItemType->SetText(UEnum::GetDisplayValueAsText(Weapon->ItemData.WeaponData.Type));
 					Power->SetText(FText::Format(
 						FText::FromString(
-							L"힘: {0}"), FText::AsNumber(Weapon->WeaponData.BaseDamage)));
+							L"힘: {0}"), FText::AsNumber(Weapon->ItemData.WeaponData.BaseDamage)));
 					UsageText->SetVisibility(ESlateVisibility::Collapsed);
 					ArmorRating->SetVisibility(ESlateVisibility::Collapsed);
 					MaxStackSize->SetVisibility(ESlateVisibility::Collapsed);
@@ -60,20 +59,20 @@ void UInventoryTooltip::UpdateToolTip()
 			default: ;
 			}
 
-			ItemName->SetText(ItemBeingHovered->TextData.Name);
+			ItemName->SetText(ItemBeingHovered->ItemData.TextData.Name);
 			DamageValue->SetText(FText::Format(
 				FText::FromString(
-					L"손상도: {0}"), FText::AsNumber(ItemBeingHovered->ItemStatistics.DamageValue)));
-			UsageText->SetText(ItemBeingHovered->TextData.UsageText);
-			ItemDescription->SetText(ItemBeingHovered->TextData.Description);
+					L"손상도: {0}"), FText::AsNumber(ItemBeingHovered->ItemData.ItemStatistics.DamageValue)));
+			UsageText->SetText(ItemBeingHovered->ItemData.TextData.UsageText);
+			ItemDescription->SetText(ItemBeingHovered->ItemData.TextData.Description);
 			SellValue->SetText(FText::Format(
 				FText::FromString(
-					L"판매가: {0}"), FText::AsNumber(ItemBeingHovered->ItemStatistics.SellValue)));
+					L"판매가: {0}"), FText::AsNumber(ItemBeingHovered->ItemData.ItemStatistics.SellValue)));
 			StackWeight->SetText(FText::AsNumber(ItemBeingHovered->GetItemStackWeight()));
 
-			if (ItemBeingHovered->NumericData.bIsStackable)
+			if (ItemBeingHovered->ItemData.NumericData.bIsStackable)
 			{
-				MaxStackSize->SetText(FText::AsNumber(ItemBeingHovered->NumericData.MaxStackSize));
+				MaxStackSize->SetText(FText::AsNumber(ItemBeingHovered->ItemData.NumericData.MaxStackSize));
 			}
 			else
 			{

@@ -28,15 +28,20 @@ public:
 #pragma endregion IInteractable
 
 	UFUNCTION(BlueprintCallable)
-	void HighlightBorder() const;
+	void SetupStartupWeapon(AItem_Weapon* Weapon);
 
 	UFUNCTION(BlueprintCallable)
-	void UnHighlightBorder() const;
+	void OnLocked() const;
+
+	UFUNCTION(BlueprintCallable)
+	void OnUnLocked() const;
 
 	UFUNCTION(BlueprintCallable)
 	void ShowFloatingBar() const;
 	UFUNCTION(BlueprintCallable)
 	void HideFloatingBar() const;
+
+	virtual void ChangeCharacterState(const ECharacterState NewState) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -44,30 +49,46 @@ protected:
 	virtual void Die() override;
 
 	virtual void UpdateHealthBar() const override;
+	virtual void UpdateStaminaBar() const override;
 
 	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
 	                       ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser) override;
 
-public:
-
 protected:
+#pragma region Widget
+
 	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UEnemyBar> WidgetClass;
+	TSubclassOf<UEnemyBar> FloatingWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UUserWidget> LockWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UDamageText> DamageTextWidgetClass;
 
 	UPROPERTY()
-	UEnemyBar* InstancedWidget;
+	TObjectPtr<UEnemyBar> StatusWidget;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> LockWidget;
 
 	UPROPERTY(EditDefaultsOnly)
-	UWidgetComponent* FloatingWidget;
+	UWidgetComponent* FloatingWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly)
+	UWidgetComponent* LockWidgetComponent;
+
+#pragma region Widget
+
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	USceneComponent* StealthLocation;
 
 	UPROPERTY(EditInstanceOnly, Category = "Interact Data")
 	FInteractableData InstancedInteractableData;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	TSubclassOf<AItem_Weapon> WeaponClass;
 
 private:
 };

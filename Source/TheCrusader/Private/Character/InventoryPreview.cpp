@@ -36,8 +36,8 @@ void AInventoryPreview::AttachEquipment(const EEquipmentPart EquipmentPart, cons
 	{
 		if (const UItemWeaponBase* Weapon = Cast<UItemWeaponBase>(ItemToEquip))
 		{
-			PreviewWeapon->SetStaticMesh(ItemToEquip->AssetData.Mesh);
-			switch (Weapon->WeaponData.Type)
+			// PreviewWeapon->SetStaticMesh(ItemToEquip->AssetData.Mesh);
+			switch (Weapon->ItemData.WeaponData.Type)
 			{
 			case EWeaponType::TwoHandSword:
 				PreviewWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale,
@@ -59,7 +59,7 @@ void AInventoryPreview::AttachEquipment(const EEquipmentPart EquipmentPart, cons
 	}
 	else if (EquipmentPart == EEquipmentPart::Bow)
 	{
-		PreviewBow->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		// PreviewBow->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
 	}
 }
 

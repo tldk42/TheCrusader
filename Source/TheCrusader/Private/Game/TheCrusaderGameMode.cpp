@@ -49,7 +49,7 @@ AActor* ATheCrusaderGameMode::ChoosePlayerStart_Implementation(AController* Play
 	return nullptr;
 }
 
-void ATheCrusaderGameMode::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int8 SlotIndex) const
+void ATheCrusaderGameMode::SaveSlotData(UMVVM_LoadSlot* LoadSlot, const int8 SlotIndex) const
 {
 	if (UGameplayStatics::DoesSaveGameExist(LoadSlot->LoadSlotName, SlotIndex))
 	{
@@ -69,7 +69,7 @@ void ATheCrusaderGameMode::SaveSlotData(UMVVM_LoadSlot* LoadSlot, int8 SlotIndex
 void ATheCrusaderGameMode::TravelToMap(const UMVVM_LoadSlot* Slot)
 {
 	const FString SlotName = Slot->LoadSlotName;
-	const int32 SlotIndex = Slot->SlotIndex;
+	// const int32 SlotIndex = Slot->SlotIndex;
 
 	UGameplayStatics::OpenLevelBySoftObjectPtr(Slot, Maps.FindChecked(Slot->GetMapName()));
 }
@@ -81,6 +81,10 @@ void ATheCrusaderGameMode::SaveInGameProgressData(ULoadScreenSaveGame* SaveObjec
 	const FString InGameLoadSlotName = TCGameInstance->LoadSlotName;
 	const int32 InGameLoadSlotIndex = TCGameInstance->LoadSlotIndex;
 	TCGameInstance->PlayerStartTag = SaveObject->PlayerStartTag;
+	const ULoadScreenSaveGame* SaveGame = GetSaveSlotData(InGameLoadSlotName, InGameLoadSlotIndex);
+	SaveObject->MapAssetName = SaveGame->MapAssetName;
+	SaveObject->MapName = SaveGame->MapName;
+	SaveObject->SavedMaps = SaveGame->SavedMaps;
 
 	UGameplayStatics::SaveGameToSlot(SaveObject, InGameLoadSlotName, InGameLoadSlotIndex);
 }
@@ -138,14 +142,72 @@ void ATheCrusaderGameMode::SaveWorldState(UWorld* World, const FString& Destinat
 			SavedMap.SavedActors.AddUnique(SavedActor);
 		}
 
-		for (FSavedMap& MapToReplace : SaveGame->SavedMaps)
+		// for (FSavedMap& MapToReplace : SaveGame->SavedMaps)
+		// {
+		// 	if (MapToReplace.MapAssetName == WorldName)
+		// 	{
+		// 		MapToReplace = SavedMap;
+		// 	}
+		// }
+		UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
+	}
+}
+
+void ATheCrusaderGameMode::SaveActor(AActor* Actor) const
+{
+	if (UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance()))
+	{
+		const FString InGameLoadSlotName = TCGameInstance->LoadSlotName;
+		const int32 InGameLoadSlotIndex = TCGameInstance->LoadSlotIndex;
+
+		if (ULoadScreenSaveGame* SaveGame = GetSaveSlotData(InGameLoadSlotName, InGameLoadSlotIndex))
 		{
-			if (MapToReplace.MapAssetName == WorldName)
+			FString WorldName = GetWorld()->GetMapName();
+			WorldName.RemoveFromStart(GetWorld()->StreamingLevelsPrefix);
+			FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
+
+			if (SavedMap.MapAssetName.IsEmpty())
 			{
-				MapToReplace = SavedMap;
+				SavedMap.MapAssetName = WorldName;
+				SavedMap.SavedActors.Empty();
+
+				FSavedActor SavedActor;
+				SavedActor.ActorName = Actor->GetFName();
+				SavedActor.Transform = Actor->GetTransform();
+
+				FMemoryWriter MemoryWriter(SavedActor.Bytes);
+
+				FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
+				Archive.ArIsSaveGame = true;
+
+				Actor->Serialize(Archive);
+				SavedMap.SavedActors.AddUnique(SavedActor);
+
+				SaveGame->SavedMaps.Add(SavedMap);
+				
+
+				UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
+				return;
+			}
+
+			for (FSavedActor& SavedActor : SavedMap.SavedActors)
+			{
+				if (SavedActor.ActorName == GetFName())
+				{
+					SavedActor.Transform = Actor->GetTransform();
+
+					FMemoryWriter MemoryWriter(SavedActor.Bytes);
+
+					FObjectAndNameAsStringProxyArchive Archive(MemoryWriter, true);
+					Archive.ArIsSaveGame = true;
+
+					Actor->Serialize(Archive);
+					UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName,
+					                                 TCGameInstance->LoadSlotIndex);
+					return;
+				}
 			}
 		}
-		UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
 	}
 }
 
@@ -171,16 +233,17 @@ void ATheCrusaderGameMode::LoadWorldState(UWorld* World) const
 		{
 			if (AActor* Actor = *Iterator; Actor->Implements<USaveInterface>())
 			{
-				for (auto [ActorName, Transform, Bytes] : SaveGame->GetSavedMapWithMapName(WorldName).SavedActors)
+				FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName);
+				for (const FSavedActor& SavedActor : SavedMap.SavedActors)
 				{
-					if (ActorName == Actor->GetFName())
+					if (SavedActor.ActorName == Actor->GetFName())
 					{
 						if (ISaveInterface::Execute_ShouldLoadTransform(Actor))
 						{
-							Actor->SetActorTransform(Transform);
+							Actor->SetActorTransform(SavedActor.Transform);
 						}
 
-						FMemoryReader MemoryReader(Bytes);
+						FMemoryReader MemoryReader(SavedActor.Bytes);
 
 						FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
 						Archive.ArIsSaveGame = true;
@@ -242,9 +305,9 @@ void ATheCrusaderGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ABalian* Player = Cast<ABalian>(GetWorld()->GetFirstPlayerController()->GetPawn()))
+	if (GetWorld()->GetFirstPlayerController()->GetPawn()->IsA(ABalian::StaticClass()))
 	{
-		PlayerCharacterRef = Player;
+		PlayerCharacterRef = Cast<ABalian>(GetWorld()->GetFirstPlayerController()->GetPawn());
 	}
 
 	Maps.Add(DefaultMapName, DefaultMap);

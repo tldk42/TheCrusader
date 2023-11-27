@@ -18,7 +18,7 @@ class UMainMenu;
  * 
  */
 UCLASS()
-class THECRUSADER_API ATC_HUD : public AHUD, public IHealthHUD
+class THECRUSADER_API ATC_HUD : public AHUD
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,11 @@ public:
 		return CrosshairWidget;
 	};
 
-	virtual void SetHP(float InPercent) override;
+	void SetHP(float InPercent) const;
+
+	void SetStamina(float InPercent) const;
+
+	UMainMenu* GetMainMenuWidget() const;
 
 protected:
 	virtual void BeginPlay() override;

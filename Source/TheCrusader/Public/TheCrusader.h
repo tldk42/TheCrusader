@@ -4,18 +4,6 @@
 
 #include "CoreMinimal.h"
 
-UENUM(BlueprintType)
-enum class EWeaponType : uint8
-{
-	Idle,
-	Boxer,
-	TwoHandSword,
-	OneHandSword,
-	Spear,
-	Hammer,
-	Bow
-};
-
 /**
  * Character gait state. Note: Also edit related struct in ALSStructEnumLibrary if you add new enums
  */
@@ -82,4 +70,25 @@ enum class ETCMovementState : uint8
 	InAir,
 	Mantling,
 	Ragdoll
+};
+
+UENUM(Blueprintable, BlueprintType)
+enum class ECharacterState : uint8
+{
+	Idle,
+	Patrolling,
+	Investigating,
+	Chasing,
+	Combat,
+	Blocking,
+	Shocked
+};
+
+UENUM(BlueprintType, Blueprintable)
+enum class EAISense : uint8
+{
+	None,
+	Sight,
+	Hearing,
+	Damage
 };

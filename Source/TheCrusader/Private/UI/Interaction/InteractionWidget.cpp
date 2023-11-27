@@ -24,12 +24,12 @@ void UInteractionWidget::NativeConstruct()
 
 void UInteractionWidget::UpdateWidget(const FInteractableData* InteractableData)
 {
+	InteractionProgressbar->SetVisibility(ESlateVisibility::Collapsed);
+
 	switch (InteractableData->InteractableType)
 	{
 	case EInteractableType::Pickup:
 		KeyPressText->SetText(FText::FromString("Press"));
-		InteractionProgressbar->SetVisibility(ESlateVisibility::Collapsed);
-
 		if (InteractableData->Quantity == 1)
 		{
 			QuantityText->SetVisibility(ESlateVisibility::Collapsed);
@@ -43,6 +43,7 @@ void UInteractionWidget::UpdateWidget(const FInteractableData* InteractableData)
 
 		break;
 	case EInteractableType::NonPlayerCharacter:
+		QuantityText->SetVisibility(ESlateVisibility::Collapsed);
 		break;
 	case EInteractableType::Ride:
 		KeyPressText->SetText(FText::FromString("Press"));

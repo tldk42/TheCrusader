@@ -3,6 +3,7 @@
 
 #include "Player/Camera/TCCameraMode.h"
 
+#include "CineCameraComponent.h"
 #include "Player/TCPlayerCameraManager.h"
 #include "Player/TCPlayerController.h"
 
@@ -27,6 +28,34 @@ UTCCameraMode::UTCCameraMode()
 ATCPlayerController* UTCCameraMode::GetOwningTCPC() const
 {
 	return PlayerCameraManager ? Cast<ATCPlayerController>(PlayerCameraManager->PCOwner) : nullptr;
+}
+
+void UTCCameraMode::ApplyCineCamSettings(FTViewTarget& OutVT, UCineCameraComponent* CineCamComp, float DeltaTime)
+{
+	if (CineCamComp)
+	{
+		// put cine cam component at final camera transform, then evaluate it
+		CineCamComp->SetWorldTransform(LastCameraToWorld);
+		if (bUseCineCamSettings)
+		{
+			CineCamComp->SetCurrentFocalLength(CineCam_CurrentFocalLength);
+			const float FocusDistance = GetDesiredFocusDistance(OutVT.Target, LastCameraToWorld) +
+				CineCam_FocusDistanceAdjustment;
+			CineCamComp->FocusSettings.ManualFocusDistance = FocusDistance;
+			CineCamComp->FocusSettings.FocusMethod = ECameraFocusMethod::Manual;
+			CineCamComp->CurrentAperture = CineCam_CurrentAperture;
+		}
+		else
+		{
+			CineCamComp->SetFieldOfView(OutVT.POV.FOV);
+			CineCamComp->FocusSettings.FocusMethod = ECameraFocusMethod::DoNotOverride;
+			CineCamComp->CurrentAperture = 22.f;
+		}
+
+		CineCamComp->GetCameraView(DeltaTime, OutVT.POV);
+
+		CineCam_DisplayOnly_FOV = OutVT.POV.FOV;
+	}
 }
 
 void UTCCameraMode::SkipNextInterpolation()

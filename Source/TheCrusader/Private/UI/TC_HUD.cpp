@@ -3,10 +3,9 @@
 
 #include "UI/TC_HUD.h"
 
-#include "TheCrusader.h"
-#include "TheCrusaderGameMode.h"
 #include "Character/Balian.h"
 #include "Components/ProgressBar.h"
+#include "Game/TheCrusaderGameMode.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/MainMenu.h"
 #include "UI/Interaction/InteractionWidget.h"
@@ -172,16 +171,26 @@ void ATC_HUD::UpdateInteractionWidget(const FInteractableData* InteractableData)
 {
 	if (InteractionWidget)
 	{
+		InteractionWidget->UpdateWidget(InteractableData);
+
 		if (InteractionWidget->GetVisibility() == ESlateVisibility::Collapsed)
 		{
 			InteractionWidget->SetVisibility(ESlateVisibility::Visible);
 		}
-
-		InteractionWidget->UpdateWidget(InteractableData);
 	}
 }
 
-void ATC_HUD::SetHP(float InPercent)
+void ATC_HUD::SetHP(const float InPercent) const
 {
-	PlayerInGameUI->HealthBar->SetPercent(InPercent);
+	PlayerInGameUI->HealthMaterial->SetScalarParameterValue(FName("Percentage"), InPercent);
+}
+
+void ATC_HUD::SetStamina(const float InPercent) const
+{
+	PlayerInGameUI->StaminaMaterial->SetScalarParameterValue(FName("Percentage"), InPercent);
+}
+
+UMainMenu* ATC_HUD::GetMainMenuWidget() const
+{
+	return MainMenuWidget;
 }

@@ -14,16 +14,12 @@ class THECRUSADER_API UItemEquipmentBase : public UItemBase
 {
 	GENERATED_BODY()
 
+public:
+	virtual void MoveToEquipment(ABalian* Character);
+
 protected:
-	virtual UItemBase* CreateItemCopy() const override;
 	virtual AItem* Drop(int32 NumToRemove) override;
 	virtual void Use(ABalian* Character) override;
 	virtual void UnEquip(ABalian* Character) override;
-
-public:
-	UPROPERTY(VisibleAnywhere, Category = "Equipment")
-	EEquipmentPart EquipmentPart;
 	
-	UPROPERTY(VisibleAnywhere, Category = "Equipment")
-	FEquipmentData EquipmentData;
 };

@@ -129,30 +129,30 @@ void ATCCharacterBase::AttachEquipment(const EEquipmentPart EquipmentPart, const
 	{
 	case EEquipmentPart::Head:
 		bHatEquipped = true;
-		Hat->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Hat->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		Hat->SetAnimInstanceClass(MorphAnimInstance);
 		UpdateMorphTargets();
 		break;
 	case EEquipmentPart::Torso:
-		Torso->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Torso->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		break;
 	case EEquipmentPart::Hair:
-		Hair->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Hair->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		Hair->SetAnimInstanceClass(MorphAnimInstance);
 		break;
 	case EEquipmentPart::Arm:
-		Arm->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Arm->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		Arm->SetAnimInstanceClass(MorphAnimInstance);
 		break;
 	case EEquipmentPart::Legs:
-		Leg->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Leg->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		break;
 	case EEquipmentPart::Feet:
-		Feet->SetSkeletalMesh(ItemToEquip->AssetData.AnimatedMesh);
+		Feet->SetSkeletalMesh(ItemToEquip->ItemData.AssetData.SkeletalMesh);
 		Feet->SetAnimInstanceClass(MorphAnimInstance);
 		break;
 	case EEquipmentPart::Shield:
-		ShieldMesh->SetStaticMesh(ItemToEquip->AssetData.Mesh);
+		ShieldMesh->SetStaticMesh(ItemToEquip->ItemData.AssetData.InteractionMesh);
 		ShieldMesh->SetVisibility(true);
 		break;
 	default: ;

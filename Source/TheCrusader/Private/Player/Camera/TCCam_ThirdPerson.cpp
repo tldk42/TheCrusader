@@ -228,6 +228,7 @@ void UTCCam_ThirdPerson::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* 
 		LastControlRotation = PlayerCameraManager->PCOwner->GetControlRotation();
 	}
 
+	ApplyCineCamSettings(OutVT, CineCamComp, DeltaTime);
 
 	bSkipNextInterpolation = false;
 }

@@ -15,6 +15,7 @@
 #include "GAS/Attribute/TCAttributeSet.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 ATCGASCharacter::ATCGASCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -40,7 +41,6 @@ ATCGASCharacter::ATCGASCharacter(const FObjectInitializer& ObjectInitializer)
 	RightArrow->SetupAttachment(GetCapsuleComponent());
 	HandArrow->SetupAttachment(GetMesh(), "arrow");
 
-	UpdateMorphTargets();
 	SetMasterPoseComponentForParts();
 
 	PrimaryActorTick.bCanEverTick = false;
@@ -102,6 +102,11 @@ void ATCGASCharacter::AddStartupEffects()
 	}
 
 	AbilitySystemComponent->bStartupEffectsApplied = true;
+}
+
+bool ATCGASCharacter::TryActivateAbilityByTag(const FGameplayTagContainer& TagContainer) const
+{
+	return AbilitySystemComponent->TryActivateAbilitiesByTag(TagContainer);
 }
 
 void ATCGASCharacter::AddCharacterAbilities()
@@ -281,26 +286,36 @@ UArrowComponent* ATCGASCharacter::GetWarpingInfo(const FVector HitLocation, bool
 	}
 }
 
-ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint) const
+ETCHitReactDirection ATCGASCharacter::GetHitReactDirection(const FVector& ImpactPoint)
 {
 	const FVector& ActorLocation = GetActorLocation();
 
 	const float DistanceToFrontBackPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorRightVector());
 	const float DistanceToRightLeftPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorForwardVector());
+	const float DistanceToUpDownPlane = FVector::PointPlaneDist(ImpactPoint, ActorLocation, GetActorUpVector());
 
-	if (FMath::Abs(DistanceToFrontBackPlane) <= FMath::Abs(DistanceToRightLeftPlane))
+	switch (FMath::Max3Index(DistanceToFrontBackPlane, DistanceToRightLeftPlane, DistanceToUpDownPlane))
 	{
-		if (DistanceToRightLeftPlane >= 0)
-		{
-			return ETCHitReactDirection::Front;
-		}
-		return ETCHitReactDirection::Back;
+	case 0:
+		HitReactDirection = DistanceToFrontBackPlane >= 0
+			                    ? ETCHitReactDirection::Front
+			                    : HitReactDirection = ETCHitReactDirection::Back;
+		break;
+	case 1:
+		HitReactDirection = DistanceToRightLeftPlane >= 0
+			                    ? ETCHitReactDirection::Right
+			                    : HitReactDirection = ETCHitReactDirection::Left;
+		break;
+	case 2:
+		HitReactDirection = DistanceToUpDownPlane >= 0
+			                    ? ETCHitReactDirection::Up
+			                    : HitReactDirection = ETCHitReactDirection::Down;
+		break;
+	default:
+		HitReactDirection = ETCHitReactDirection::Front;
 	}
-	if (DistanceToFrontBackPlane >= 0)
-	{
-		return ETCHitReactDirection::Right;
-	}
-	return ETCHitReactDirection::Left;
+
+	return HitReactDirection;
 }
 
 #pragma endregion Getter
@@ -355,26 +370,25 @@ void ATCGASCharacter::DoMeleeAttack()
 		const FName StartSections[2] = {"Combo1", "Combo1-2"};
 		CurrentSectionName = StartSections[UKismetMathLibrary::RandomInteger(2)];
 
-		if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
-		{
-			if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
-			{
-				// const FName Sections[1] = {"LongD-1"};
-
-				CurrentSectionName = TEXT("LongD-1");
-			}
-		}
+		// if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
+		// {
+		// 	if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
+		// 	{
+		// 		// const FName Sections[1] = {"LongD-1"};
+		//
+		// 		CurrentSectionName = TEXT("LongD-1");
+		// 	}
+		// }
 
 		bComboEnabled = false;
 		// 새로 몽타주를 재생한다.
 		if (ActivateAbilitiesByWeaponType(CombatMode, true))
-			if (ActivateAbilitiesByWeaponType(CombatMode, true))
+		{
+			if (CombatMode == EWeaponType::None)
 			{
-				if (CombatMode == EWeaponType::Idle)
-				{
-					// SetAnimLayer(EWeaponType::Boxer);
-				}
+				// SetAnimLayer(EWeaponType::Boxer);
 			}
+		}
 	}
 }
 
@@ -384,6 +398,12 @@ void ATCGASCharacter::DoShoot()
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.Shoot"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
+
+void ATCGASCharacter::ChangeCharacterState(const ECharacterState NewState)
+{
+	CharacterState = NewState;
+}
+
 
 void ATCGASCharacter::JumpSectionForCombo()
 {
@@ -395,16 +415,16 @@ void ATCGASCharacter::JumpSectionForCombo()
 			0, JumpSectionNotify->JumpSections.Num() - 1)];
 		CurrentSectionName = NextSectionName;
 
-		// 타겟과의 거리가 너무 멀다면 특정 공격 모션(멀리서부터 다가오는)으로 다음 섹션을 설정한다.
-		if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
-		{
-			if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
-			{
-				const FName Sections[2] = {"LongD-1", "LongD-2"};
-
-				CurrentSectionName = Sections[UKismetMathLibrary::RandomInteger(2)];
-			}
-		}
+		// // 타겟과의 거리가 너무 멀다면 특정 공격 모션(멀리서부터 다가오는)으로 다음 섹션을 설정한다.
+		// if (const FMotionWarpingTarget* TargetData = MotionWarpingComponent->FindWarpTarget("Target"))
+		// {
+		// 	if (UKismetMathLibrary::Vector_Distance(TargetData->Location, GetActorLocation()) >= 280)
+		// 	{
+		// 		const FName Sections[2] = {"LongD-1", "LongD-2"};
+		//
+		// 		CurrentSectionName = Sections[UKismetMathLibrary::RandomInteger(2)];
+		// 	}
+		// }
 
 		// Ability (공격을 시도한다.)
 		ActivateAbilitiesByWeaponType(CombatMode, true);
@@ -432,8 +452,14 @@ void ATCGASCharacter::UpdateHealthBar() const
 {
 }
 
+void ATCGASCharacter::UpdateStaminaBar() const
+{
+}
+
 void ATCGASCharacter::Die()
 {
+	CharacterState = ECharacterState::Idle;
+
 	RemoveCharacterAbilities();
 
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
@@ -478,7 +504,14 @@ void ATCGASCharacter::FinishDying()
 	Destroy();
 }
 
-void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
+void ATCGASCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	UpdateMorphTargets();
+}
+
+void ATCGASCharacter::OnDamaged(float DamageAmount, const FHitResult& HitInfo,
+                                const FGameplayTagContainer& DamageTags,
                                 ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser)
 {
 	UE_LOG(LogTemp, Warning, TEXT("DAMAGED"));
@@ -494,6 +527,12 @@ void ATCGASCharacter::OnHealthChanged(float DeltaValue, const FGameplayTagContai
 	}
 }
 
+void ATCGASCharacter::OnStaminaChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	UpdateStaminaBar();
+
+	// 다 소모하면 탈진 몽타주 재생
+}
 
 void ATCGASCharacter::HandleDamage(const float DamageAmount, const FHitResult& HitInfo,
                                    const FGameplayTagContainer& DamageTags, ATCGASCharacter* InstigatorCharacter,
@@ -505,6 +544,11 @@ void ATCGASCharacter::HandleDamage(const float DamageAmount, const FHitResult& H
 void ATCGASCharacter::HandleHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
 {
 	OnHealthChanged(DeltaValue, EventTags);
+}
+
+void ATCGASCharacter::HandleStaminaChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	OnStaminaChanged(DeltaValue, EventTags);
 }
 
 #pragma endregion Attribute Changes

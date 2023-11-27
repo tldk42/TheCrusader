@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/Interactable.h"
+#include "Interfaces/SaveInterface.h"
 #include "Item.generated.h"
 
 class UCapsuleComponent;
@@ -12,7 +13,7 @@ class UDataTable;
 class UItemBase;
 
 UCLASS()
-class THECRUSADER_API AItem : public AActor, public IInteractable
+class THECRUSADER_API AItem : public AActor, public IInteractable, public ISaveInterface
 {
 	GENERATED_BODY()
 
@@ -20,6 +21,13 @@ public:
 	AItem();
 
 public:
+#pragma region ISaveInterface
+
+	virtual bool ShouldLoadTransform_Implementation() override;
+	virtual void LoadActor_Implementation() override;
+
+#pragma endregion ISaveInterface
+
 #pragma region IInteractabale
 	virtual void BeginFocus() override;
 	virtual void EndFocus() override;
@@ -31,10 +39,10 @@ public:
 	virtual void InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity);
 	virtual void InitializeDrop(UItemBase* ItemToDrop, int32 InQuantity);
 
-	void DisableInteractionCollision()const;
-
+	void DisableInteractionCollision() const;
+	
 	FORCEINLINE virtual UItemBase* GetItemData() const { return ItemRef; }
-	FORCEINLINE UStaticMeshComponent* GetMesh() const { return Mesh; }
+	FORCEINLINE UStaticMeshComponent* GetMesh() const { return StaticMesh; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -49,21 +57,24 @@ protected:
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
-	USceneComponent* OriginRoot;
+	USceneComponent* SceneComponent;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Components")
-	UStaticMeshComponent* Mesh;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup | Components")
+	UStaticMeshComponent* StaticMesh;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Components")
-	UCapsuleComponent* InteractionCollision;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup | Components")
+	USkeletalMeshComponent* SkeletalMeshComponent;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Initialization")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Pickup | Components")
+	UCapsuleComponent* InteractionAreaCollision;
+
+	UPROPERTY(EditAnywhere, Category = "Pickup | Item Initialization")
 	UDataTable* ItemDataTable;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Initialization")
+	UPROPERTY(EditAnywhere, Category = "Pickup | Item Initialization")
 	FName DesiredItemID;
 
-	UPROPERTY(EditInstanceOnly, Category = "Pickup | Item Initialization")
+	UPROPERTY(EditAnywhere, Category = "Pickup | Item Initialization")
 	int32 ItemQuantity;
 
 	UPROPERTY(VisibleAnywhere, Category = "Pickup | Interaction")
@@ -71,4 +82,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	UItemBase* ItemRef;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, SaveGame)
+	bool bSpawn = true;
 };

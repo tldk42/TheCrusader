@@ -58,6 +58,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditInstanceOnly)
 	UTCCameraMode* CameraMode = nullptr;
 
+	/** Cine cam component associated with the instance */
+	UPROPERTY(BlueprintReadOnly, EditInstanceOnly)
+	UCineCameraComponent* CineCameraComponent = nullptr;
+
 	void UpdateCamera(float DeltaTime, FTViewTarget& OutVT);
 };
 

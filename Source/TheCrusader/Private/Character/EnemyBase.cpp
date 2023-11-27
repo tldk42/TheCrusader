@@ -3,14 +3,18 @@
 
 #include "Character/EnemyBase.h"
 
+#include "BehaviorTree/BlackboardComponent.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Character/Balian.h"
+#include "Character/AI/AIController_Base.h"
 #include "Component/Physics/TCPhysicalAnimComp.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
 #include "Components/WidgetComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GAS/TCAbilitySystemComponent.h"
 #include "GAS/Attribute/TCAttributeSet.h"
+#include "Item/Weapon/Item_Weapon.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UI/DamageText/DamageText.h"
 #include "UI/FloatingBar/EnemyBar.h"
@@ -22,14 +26,23 @@ AEnemyBase::AEnemyBase(const FObjectInitializer& ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	FloatingWidget = CreateDefaultSubobject<UWidgetComponent>("FloatingWidget");
-	FloatingWidget->SetupAttachment(GetMesh(), FName("root"));
-	FloatingWidget->SetRelativeLocation(FVector(0, 0, 190.f));
-	FloatingWidget->SetWidgetSpace(EWidgetSpace::Screen);
-	FloatingWidget->SetDrawAtDesiredSize(true);
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 
-	StealthLocation = CreateDefaultSubobject<USceneComponent>("Stealth Location");
-	FloatingWidget->SetupAttachment(GetRootComponent());
+	AIControllerClass = AAIController_Base::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+	FloatingWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("W_Status"));
+	FloatingWidgetComponent->SetRelativeLocation(FVector(0, 0, 190.f));
+	FloatingWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	FloatingWidgetComponent->SetDrawAtDesiredSize(true);
+
+	LockWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("W_LockOn"));
+	LockWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	LockWidgetComponent->SetDrawAtDesiredSize(false);
+
+	StealthLocation = CreateDefaultSubobject<USceneComponent>(TEXT("L_Stealth"));
+	FloatingWidgetComponent->SetupAttachment(GetRootComponent());
+	LockWidgetComponent->SetupAttachment(GetRootComponent());
 	StealthLocation->SetupAttachment(GetRootComponent());
 
 	AbilitySystemComponent = CreateDefaultSubobject<UTCAbilitySystemComponent>("AbilitySystemComponent");
@@ -63,6 +76,17 @@ void AEnemyBase::Interact(ABalian* PlayerCharacter)
 	PlayerCharacter->StealthTakeDown();
 }
 
+void AEnemyBase::SetupStartupWeapon(AItem_Weapon* Weapon)
+{
+	CurrentWeapon = Weapon;
+
+	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, "sword");
+	CurrentWeapon->DisableInteractionCollision();
+	CurrentWeapon->GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CurrentWeapon->SetInstigator(this);
+	CombatMode = EWeaponType::SwordWithShield;
+}
+
 void AEnemyBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -73,25 +97,59 @@ void AEnemyBase::BeginPlay()
 	AddStartupEffects();
 	AddCharacterAbilities();
 
-	InstancedWidget = CreateWidget<UEnemyBar>(GetWorld(), WidgetClass);
-	FloatingWidget->SetWidget(InstancedWidget);
-	// FloatingWidget->SetVisibility(false);
+	StatusWidget = CreateWidget<UEnemyBar>(GetWorld(), FloatingWidgetClass);
+	LockWidget = CreateWidget<UUserWidget>(GetWorld(), LockWidgetClass);
+	FloatingWidgetComponent->SetWidget(StatusWidget);
+	LockWidgetComponent->SetWidget(LockWidget);
+
+	StatusWidget->SetVisibility(ESlateVisibility::Collapsed);
+	LockWidget->SetVisibility(ESlateVisibility::Collapsed);
+
 	UpdateHealthBar();
+	UpdateStaminaBar();
 	HideFloatingBar();
+
+	if (WeaponClass)
+	{
+		AItem_Weapon* Weapon = GetWorld()->SpawnActor<AItem_Weapon>(WeaponClass);
+		if (Weapon)
+		{
+			SetupStartupWeapon(Weapon);
+		}
+	}
 }
 
 void AEnemyBase::Die()
 {
 	Super::Die();
 
-	UnHighlightBorder();
+	OnUnLocked();
+}
+
+void AEnemyBase::ChangeCharacterState(const ECharacterState NewState)
+{
+	Super::ChangeCharacterState(NewState);
+
+	if (AAIController_Base* AIController = Cast<AAIController_Base>(GetController()))
+	{
+		AIController->GetBlackboardComponent()->SetValueAsEnum(AAIController_Base::KEY_STATE,
+		                                                       static_cast<uint8>(CharacterState));
+	}
 }
 
 void AEnemyBase::UpdateHealthBar() const
 {
-	if (InstancedWidget)
+	if (StatusWidget)
 	{
-		InstancedWidget->UpdateHPBar(GetHealth() / GetMaxHealth());
+		StatusWidget->UpdateHP(GetHealth() / GetMaxHealth());
+	}
+}
+
+void AEnemyBase::UpdateStaminaBar() const
+{
+	if (StatusWidget)
+	{
+		StatusWidget->UpdateStamina(GetStamina() / GetMaxStamina());
 	}
 }
 
@@ -100,7 +158,6 @@ void AEnemyBase::OnDamaged(const float DamageAmount, const FHitResult& HitInfo, 
 {
 	Super::OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
-
 
 	if (FVector2D PathToScreen; UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition(PlayerController,
 		HitInfo.Location.IsZero() ? GetActorLocation() : HitInfo.Location, PathToScreen, false))
@@ -118,13 +175,18 @@ void AEnemyBase::OnDamaged(const float DamageAmount, const FHitResult& HitInfo, 
 		}
 	}
 
-	if (DamageTags.HasTagExact(FGameplayTag::RequestGameplayTag("Ability.Action.Stealth")))
-	{
-		HideFloatingBar();
-		return;
-	}
 
-	SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+	// SetActorRotation(UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), DamageCauser->GetActorLocation()));
+
+	FTimerHandle StateResetTimerHandle;
+	GetWorld()->GetTimerManager().SetTimer(StateResetTimerHandle,
+	                                       [this]() { ChangeCharacterState(ECharacterState::Combat); },
+	                                       DamageTags.HasTagExact(
+		                                       FGameplayTag::RequestGameplayTag("Ability.Action.Parry"))
+		                                       ? 2.f
+		                                       : 1.f,
+	                                       false);
+	ChangeCharacterState(ECharacterState::Shocked);
 
 	PhysicalAnimComponent->HitReaction(HitInfo);
 	if (!TargetCharacter)
@@ -133,24 +195,26 @@ void AEnemyBase::OnDamaged(const float DamageAmount, const FHitResult& HitInfo, 
 	}
 }
 
-
-void AEnemyBase::HighlightBorder() const
+void AEnemyBase::OnLocked() const
 {
 	ShowFloatingBar();
-	InstancedWidget->HighlightBorder();
+	LockWidget->SetVisibility(ESlateVisibility::Visible);
+	StatusWidget->HighlightBorder();
 }
 
-void AEnemyBase::UnHighlightBorder() const
+void AEnemyBase::OnUnLocked() const
 {
-	InstancedWidget->UnHighlightBorder();
+	HideFloatingBar();
+	LockWidget->SetVisibility(ESlateVisibility::Collapsed);
+	StatusWidget->UnHighlightBorder();
 }
 
 void AEnemyBase::ShowFloatingBar() const
 {
-	InstancedWidget->SetVisibility(ESlateVisibility::Visible);
+	StatusWidget->SetVisibility(ESlateVisibility::Visible);
 }
 
 void AEnemyBase::HideFloatingBar() const
 {
-	InstancedWidget->SetVisibility(ESlateVisibility::Collapsed);
+	StatusWidget->SetVisibility(ESlateVisibility::Collapsed);
 }

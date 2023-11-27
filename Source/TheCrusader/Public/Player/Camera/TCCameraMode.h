@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "CineCameraSettings.h"
 #include "Library/TCInterpolator.h"
 #include "UObject/Object.h"
 #include "TCCameraMode.generated.h"
@@ -54,6 +55,30 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam")
 	bool bUseCineCamSettings;
+
+	/** When true, default cinecam filmback settings will be overriden by what is set in CineCam_FilmbackOverride */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam", meta = (EditCondition = bUseCineCamSettings))
+	bool bOverrideFilmback = false;
+
+	/** Custom filmback settings to use when OverrideFilmback is enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam", meta = (EditCondition = bOverrideFilmback))
+	FCameraFilmbackSettings CineCam_FilmbackOverride;
+	
+	/** Camera focal length to use when UseCinecamSettings is enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam", meta = (EditCondition = bUseCineCamSettings))
+	float CineCam_CurrentFocalLength = 30.f;
+
+	/** Camera aperture to use when UseCinecamSettings is enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam", meta = (EditCondition = bUseCineCamSettings))
+	float CineCam_CurrentAperture = 11.f;
+
+	/** Custom focus distance adjustment to use when UseCinecamSettings is enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "CineCam", meta = (EditCondition = bUseCineCamSettings))
+	float CineCam_FocusDistanceAdjustment = 0.f;
+
+	/** FOV to use when UseCineCam is enabled */
+	UPROPERTY(VisibleAnywhere, Category = "CineCam", meta = (EditCondition = bUseCineCamSettings))
+	float CineCam_DisplayOnly_FOV = 70.f;
 
 	UPROPERTY(Transient)
 	TArray<AActor*> BlockingActors;
@@ -121,6 +146,9 @@ protected:
 
 	/** Attempts to cast and return the camera modes's owning CitySample Player Controller */
 	ATCPlayerController* GetOwningTCPC() const;
+
+	/** Applies cine cam settings to the current camera mode if relevant */
+	void ApplyCineCamSettings(FTViewTarget& OutVT, UCineCameraComponent* CineCamComp, float DeltaTime);
 
 	/** Attempts to determine the camera mode's desired focus distance, whether it be calculated normally or if a custom focus distance method is used  */
 	virtual float GetDesiredFocusDistance(AActor* ViewTarget, const FTransform& ViewToWorld) const;

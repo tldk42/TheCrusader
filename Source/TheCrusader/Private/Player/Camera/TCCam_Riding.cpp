@@ -6,7 +6,7 @@
 #include "Character/Horse_Base.h"
 #include "Kismet/GameplayStatics.h"
 
-static TAutoConsoleVariable<bool> CVarDrawDrivingCamDebug(
+static TAutoConsoleVariable<bool> DrawRidingCamDebug(
 	TEXT("Camera.DrawRidingCamDebug"),
 	false,
 	TEXT("Toggle for displaying driving camera debug info"),
@@ -76,7 +76,7 @@ void UTCCam_Riding::UpdateCamera(AActor* ViewTarget, UCineCameraComponent* CineC
 	}
 
 #if ENABLE_DRAW_DEBUG
-	if (CVarDrawDrivingCamDebug.GetValueOnGameThread())
+	if (DrawRidingCamDebug.GetValueOnGameThread())
 	{
 		const FString DisplayString1 = FString::Printf(
 			TEXT("Time Spent past steering threshold: %f"), TimeSpentSteering);
@@ -379,7 +379,7 @@ FRotator UTCCam_Riding::ComputeSmoothPivotRotation(const FRotator IdealPivotToWo
 	const FRotator CurrentRot = PivotRotInterpolator.Eval(IdealPivotToWorldRot, DeltaTime);
 
 #if ENABLE_DRAW_DEBUG
-	if (CVarDrawDrivingCamDebug.GetValueOnGameThread())
+	if (DrawRidingCamDebug.GetValueOnGameThread())
 	{
 		const float RemainingRot = FMath::Abs((IdealPivotToWorldRot - CurrentRot).Yaw);
 

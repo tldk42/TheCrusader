@@ -4,6 +4,7 @@
 #include "GAS/Attribute/TCAttributeSet.h"
 #include "GameplayEffect.h"
 #include "GameplayEffectExtension.h"
+#include "Character/EnemyBase.h"
 #include "Character/TCGASCharacter.h"
 #include "Net/UnrealNetwork.h"
 
@@ -38,6 +39,7 @@ void UTCAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 	FGameplayEffectContextHandle Context = Data.EffectSpec.GetContext();
 	UAbilitySystemComponent* Source = Context.GetOriginalInstigatorAbilitySystemComponent();
 	const FGameplayTagContainer& SourceTags = *Data.EffectSpec.CapturedSourceTags.GetAggregatedTags();
+	const FGameplayTagContainer& TargetTags = *Data.EffectSpec.CapturedTargetTags.GetAggregatedTags();
 
 	float DeltaValue = 0;
 	if (Data.EvaluatedData.ModifierOp == EGameplayModOp::Additive)
@@ -118,36 +120,38 @@ void UTCAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 
 			if (TargetCharacter && WasAlive)
 			{
-				const FHitResult* Hit = Data.EffectSpec.GetContext().GetHitResult();
-
-				if (Hit)
-				{
-					ETCHitReactDirection HitDirection = TargetCharacter->GetHitReactDirection(
-						Data.EffectSpec.GetContext().GetHitResult()->Location);
-					switch (HitDirection)
-					{
-					case ETCHitReactDirection::None:
-					default:
-						TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
-						break;
-					case ETCHitReactDirection::Left:
-						TargetCharacter->PlayHitReact(HitDirectionLeftTag, SourceCharacter);
-						break;
-					case ETCHitReactDirection::Front:
-						TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
-						break;
-					case ETCHitReactDirection::Right:
-						TargetCharacter->PlayHitReact(HitDirectionRightTag, SourceCharacter);
-						break;
-					case ETCHitReactDirection::Back:
-						TargetCharacter->PlayHitReact(HitDirectionBackTag, SourceCharacter);
-						break;
-					}
-				}
-				else
-				{
-					TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
-				}
+				/**
+				// const FHitResult* Hit = Data.EffectSpec.GetContext().GetHitResult();
+				//
+				// if (Hit)
+				// {
+				// 	ETCHitReactDirection HitDirection = TargetCharacter->GetHitReactDirection(
+				// 		Data.EffectSpec.GetContext().GetHitResult()->Location);
+				// 	switch (HitDirection)
+				// 	{
+				// 	case ETCHitReactDirection::None:
+				// 	default:
+				// 		TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+				// 		break;
+				// 	case ETCHitReactDirection::Left:
+				// 		TargetCharacter->PlayHitReact(HitDirectionLeftTag, SourceCharacter);
+				// 		break;
+				// 	case ETCHitReactDirection::Front:
+				// 		TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+				// 		break;
+				// 	case ETCHitReactDirection::Right:
+				// 		TargetCharacter->PlayHitReact(HitDirectionRightTag, SourceCharacter);
+				// 		break;
+				// 	case ETCHitReactDirection::Back:
+				// 		TargetCharacter->PlayHitReact(HitDirectionBackTag, SourceCharacter);
+				// 		break;
+				// 	}
+				// }
+				// else
+				// {
+				// 	TargetCharacter->PlayHitReact(HitDirectionFrontTag, SourceCharacter);
+				// }
+				**/
 
 				TargetCharacter->HandleDamage(LocalDamageDone, HitResult, SourceTags, SourceCharacter, SourceActor);
 
@@ -166,6 +170,15 @@ void UTCAttributeSet::PostGameplayEffectExecute(const FGameplayEffectModCallback
 			TargetCharacter->HandleHealthChanged(DeltaValue, SourceTags);
 		}
 	}
+
+	else if (Data.EvaluatedData.Attribute == GetStaminaAttribute())
+	{
+		if (TargetCharacter)
+		{
+			SetStamina(FMath::Clamp(GetStamina(), 0.f, GetMaxStamina()));
+			TargetCharacter->HandleStaminaChanged(DeltaValue, SourceTags);
+		}
+	}
 }
 
 void UTCAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -178,6 +191,11 @@ void UTCAttributeSet::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, Stamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, MaxStamina, COND_None, REPNOTIFY_Always);
 	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, StaminaRegenRate, COND_None, REPNOTIFY_Always);
+
+
+	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, AttackPower, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, DefensePower, COND_None, REPNOTIFY_Always);
+	DOREPLIFETIME_CONDITION_NOTIFY(UTCAttributeSet, SkillPower, COND_None, REPNOTIFY_Always);
 }
 
 void UTCAttributeSet::AdjustAttributeForMaxChange(FGameplayAttributeData& AffectedAttribute,
@@ -236,4 +254,9 @@ void UTCAttributeSet::OnRep_AttackPower(const FGameplayAttributeData& OldValue)
 void UTCAttributeSet::OnRep_DefensePower(const FGameplayAttributeData& OldValue)
 {
 	GAMEPLAYATTRIBUTE_REPNOTIFY(UTCAttributeSet, DefensePower, OldValue);
+}
+
+void UTCAttributeSet::OnRep_SkillPower(const FGameplayAttributeData& OldValue)
+{
+	GAMEPLAYATTRIBUTE_REPNOTIFY(UTCAttributeSet, SkillPower, OldValue);
 }

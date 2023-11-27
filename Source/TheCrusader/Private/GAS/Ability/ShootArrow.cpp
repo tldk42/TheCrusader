@@ -98,7 +98,7 @@ void UShootArrow::EventReceived(FGameplayTag EventTag, FGameplayEventData EventD
 
 		Hero->InitAimingDuration();
 
-		FVector MuzzleLocation = Hero->GetCurrentBow()->GetBowComponent()->GetSocketLocation(FName("Muzzle"));
+		FVector MuzzleLocation = Hero->GetCurrentBow()->GetSkeletalMeshComp()->GetSocketLocation(FName("Muzzle"));
 		// MuzzleTransform.SetRotation(MuzzleTransform.GetRotation().GetForwardVector().ToOrientationQuat());
 		// MuzzleTransform.SetScale3D(FVector(1.0f));
 
@@ -116,12 +116,8 @@ void UShootArrow::EventReceived(FGameplayTag EventTag, FGameplayEventData EventD
 
 			FVector End = HitResult.bBlockingHit ? HitResult.ImpactPoint : HitResult.TraceEnd;
 
-			GetWorld()->LineTraceSingleByChannel(HitResult, MuzzleLocation, End, ECC_Visibility);
-			// DrawDebugLine(GetWorld(), MuzzleLocation,
-			//               HitResult.bBlockingHit
-			// 	              ? HitResult.ImpactPoint
-			// 	              : HitResult.TraceEnd,
-			//               FColor::Red, false, 3.f, 0, 1.f);
+			GetWorld()->LineTraceSingleByChannel(HitResult, MuzzleLocation, End,
+			                                     ECollisionChannel::ECC_GameTraceChannel1);
 
 			FVector Temp = HitResult.bBlockingHit
 				               ? HitResult.ImpactPoint

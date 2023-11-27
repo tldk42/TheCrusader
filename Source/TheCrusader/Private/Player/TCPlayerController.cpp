@@ -15,7 +15,7 @@ void ATCPlayerController::ToggleMenu()
 }
 
 void ATCPlayerController::BeginPlay()
-{
+{   
 	Super::BeginPlay();
 
 	PlayerRef = Cast<ABalian>(GetCharacter());
@@ -24,7 +24,7 @@ void ATCPlayerController::BeginPlay()
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<
 		UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
-		Subsystem->AddMappingContext(ControllerMappingContext, 0);
+		Subsystem->AddMappingContext(ControllerMappingContext, 99);
 	}
 }
 
@@ -46,7 +46,7 @@ void ATCPlayerController::ShowRadialMenu()
 {
 	HUD->ShowRadialWidget();
 	SetInputMode(FInputModeGameAndUI());
-		OriginTimeDilation = UGameplayStatics::GetGlobalTimeDilation(GetWorld());
+	OriginTimeDilation = UGameplayStatics::GetGlobalTimeDilation(GetWorld());
 
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), .05f);
 }
