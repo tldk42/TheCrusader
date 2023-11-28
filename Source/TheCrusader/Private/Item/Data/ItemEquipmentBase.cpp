@@ -8,6 +8,11 @@
 #include "Item/Equipment/Item_Equipment.h"
 
 
+UItemEquipmentBase::UItemEquipmentBase()
+{
+	bIsPickup = true;
+}
+
 void UItemEquipmentBase::MoveToEquipment(ABalian* Character)
 {
 	if (Character)

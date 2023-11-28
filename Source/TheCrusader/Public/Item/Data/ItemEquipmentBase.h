@@ -15,6 +15,8 @@ class THECRUSADER_API UItemEquipmentBase : public UItemBase
 	GENERATED_BODY()
 
 public:
+	UItemEquipmentBase();
+	
 	virtual void MoveToEquipment(ABalian* Character);
 
 protected:

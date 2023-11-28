@@ -61,7 +61,7 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 				FHitResult HitResult = SweepResult;
 
 				TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypesArray;
-				ObjectTypesArray.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel1));
+				ObjectTypesArray.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
 				// Enemy
 				ObjectTypesArray.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_GameTraceChannel3));
 				// Player
@@ -99,39 +99,5 @@ void AItem_Weapon::OnBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* O
 void AItem_Weapon::OnEndOverlap(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor,
                                 class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	// UKismetSystemLibrary::Delay(GetWorld(), .2f, FLatentActionInfo());
 	bAttacked = false;
 }
-
-// void AItem_Weapon::InitializePickup(const TSubclassOf<UItemBase> BaseClass, const int32 InQuantity)
-// {
-// 	if (ItemDataTable && !DesiredItemID.IsNone())
-// 	{
-// 		const FItemWeaponData* ItemData = ItemDataTable->FindRow<FItemWeaponData>(
-// 			DesiredItemID, DesiredItemID.ToString());
-// 		if (ItemData)
-// 		{
-// 			UItemWeaponBase* ItemBase = NewObject<UItemWeaponBase>(this, BaseClass);
-//
-// 			ItemBase->ID = ItemData->ItemID;
-// 			ItemBase->ItemType = ItemData->ItemType;
-// 			ItemBase->ItemQuality = ItemData->ItemQuality;
-// 			ItemBase->ItemStatistics = ItemData->ItemStatistics;
-// 			ItemBase->TextData = ItemData->TextData;
-// 			ItemBase->NumericData = ItemData->NumericData;
-// 			ItemBase->AssetData = ItemData->AssetData;
-// 			ItemBase->EquipmentData = ItemData->EquipmentData;
-// 			ItemBase->EquipmentPart = ItemData->EquipmentPart;
-// 			ItemBase->WeaponData = ItemData->WeaponData;
-// 			ItemBase->bIsPickup = true;
-//
-// 			InQuantity <= 0 ? ItemBase->SetQuantity(1) : ItemBase->SetQuantity(InQuantity);
-//
-// 			ItemRef = ItemBase;
-//
-// 			StaticMesh->SetStaticMesh(ItemData->AssetData.Mesh);
-//
-// 			UpdateInteractableData();
-// 		}
-// 	}
-// }

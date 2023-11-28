@@ -56,12 +56,14 @@ public:
 	UPROPERTY()
 	UInventoryComponent* OwningInventory;
 
-	UPROPERTY(VisibleAnywhere, Category = "Item")
+	UPROPERTY(VisibleAnywhere, Category = "Item", SaveGame)
 	int32 Quantity;
 
 	UPROPERTY(VisibleAnywhere, Category = "Item")
 	FInventoryItem ItemData;
 
+	UPROPERTY(SaveGame)
 	bool bIsCopy;
+	UPROPERTY(SaveGame)
 	bool bIsPickup;
 };
