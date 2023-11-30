@@ -20,6 +20,7 @@
 #include "Character/Horse_Base.h"
 #include "Character/InventoryPreview.h"
 #include "Character/Movement/TCMovementComponent.h"
+#include "Component/Skill/SkillComponent.h"
 #include "Game/TheCrusaderGameMode.h"
 #include "GAS/Attribute/TCAttributeSet.h"
 #include "Item/Weapon/Item_Weapon_Bow.h"
@@ -43,6 +44,8 @@ ABalian::ABalian(const FObjectInitializer& ObjectInitializer)
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 	InventoryComponent->SetSlotsCapacity(20);
 	InventoryComponent->SetWeightCapacity(50.f);
+
+	SkillComponent = CreateDefaultSubobject<USkillComponent>(TEXT("SkillComponent"));
 
 	BaseEyeHeight = 74.f;
 }
@@ -399,18 +402,22 @@ void ABalian::SaveProgress_Implementation(const FName& CheckpointTag)
 				SaveData->SavedInventory.Empty();
 				SaveData->SavedEquipments.Empty();
 
-				for (const UItemBase* ItemBase : InventoryComponent->GetInventoryContents())
+				for (UItemBase* ItemBase : InventoryComponent->GetInventoryContents())
 				{
 					FSavedInventory SavedInventory;
-					// SavedInventory.InventoryItem = ItemBase->ItemData;
+					SavedInventory.InventoryItem = ItemBase->ItemData;
 					SavedInventory.ItemDataClass = ItemBase->GetClass();
+					SaveData->SaveData(ItemBase, SavedInventory.Data);
+
 					SaveData->SavedInventory.Add(SavedInventory);
 				}
 				for (const auto& EquippedContent : InventoryComponent->GetEquippedContents())
 				{
 					FSavedInventory SavedInventory;
-					// SavedInventory.InventoryItem = EquippedContent.Value->ItemData;
+					SaveData->SaveData(EquippedContent.Value, SavedInventory.Data);
+					SavedInventory.InventoryItem = EquippedContent.Value->ItemData;
 					SavedInventory.ItemDataClass = EquippedContent.Value->GetClass();
+
 					SaveData->SavedEquipments.Add(SavedInventory);
 				}
 			}
@@ -444,30 +451,30 @@ void ABalian::LoadProgress()
 				AttributeSetBase->SetDefensePower(SaveData->DefensePower);
 				AttributeSetBase->SetSkillPower(SaveData->SkillPower);
 				SetActorLocation(SaveData->PlayerStartLocation);
-			}
 
-			if (InventoryComponent)
-			{
-				for (const auto& [ItemDataClass, InventoryItem, ObjectName, Data] : SaveData->SavedInventory)
+				if (InventoryComponent)
 				{
-					UItemBase* Item = NewObject<UItemBase>(this, ItemDataClass);
-					Item->ItemData = InventoryItem;
-					Item->Quantity = 1;
-					Item->bIsPickup = true;
-					InventoryComponent->HandleAddItem(Item);
-				}
+					for (FSavedInventory& SavedItem : SaveData->SavedInventory)
+					{
+						UItemBase* Item = NewObject<UItemBase>(this, SavedItem.ItemDataClass);
+						Item->ItemData = SavedItem.InventoryItem;
+						Item->OwningInventory = this->GetInventory();
+						SaveData->LoadData(Item, SavedItem.Data);
 
-				for (const auto& [ItemDataClass, InventoryItem, ObjectName, Data] : SaveData->SavedEquipments)
-				{
-					UItemEquipmentBase* Item = NewObject<UItemEquipmentBase>(this, ItemDataClass);
-					Item->ItemData = InventoryItem;
-					Item->Quantity = 1;
-					Item->bIsPickup = true;
-					Item->MoveToEquipment(this);
+						InventoryComponent->HandleAddItem(Item);
+					}
+
+					for (FSavedInventory& SavedEquipment : SaveData->SavedEquipments)
+					{
+						UItemEquipmentBase* Item = NewObject<UItemEquipmentBase>(this, SavedEquipment.ItemDataClass);
+						Item->ItemData = SavedEquipment.InventoryItem;
+						Item->OwningInventory = this->GetInventory();
+						SaveData->LoadData(Item, SavedEquipment.Data);
+						Item->MoveToEquipment(this);
+					}
 				}
+				TCGameMode->LoadWorldState(GetWorld());
 			}
-
-			TCGameMode->LoadWorldState(GetWorld());
 		}
 	}
 }
@@ -806,7 +813,7 @@ void ABalian::MMBClick()
 {
 	// GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, FString(L"마우스 중간 클릭"));
 	FGameplayTagContainer Container;
-	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Action.FindTarget"));
+	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Gameplay.FindTarget"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
@@ -1090,6 +1097,11 @@ bool ABalian::UpdateStateByButton(const EButtonType BtnType)
 	}
 
 	SetAnimLayer();
+
+	if (bIsTargeting)
+	{
+		LockCamera();
+	}
 
 	return true;
 }

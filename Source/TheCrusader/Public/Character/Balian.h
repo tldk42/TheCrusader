@@ -9,6 +9,7 @@
 #include "Interfaces/SavableCharacter.h"
 #include "Balian.generated.h"
 
+class USkillComponent;
 class UTCMovementComponent;
 class AInventoryPreview;
 class UCameraComponent;
@@ -290,6 +291,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Movement, meta = (AllowPrivateAccess = true))
 	UTCMovementComponent* TCMovementComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Skill, meta = (AllowPrivateAccess = true))
+	USkillComponent* SkillComponent;
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	ATC_HUD* HUD;
