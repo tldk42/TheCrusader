@@ -13,10 +13,10 @@ USkillComponent::USkillComponent()
 	: SkillDataTable(nullptr),
 	  AvailablePoints(0)
 {
-	SkillsSlot = TEXT("SaveSkill");
+	SkillsSlot = TEXT("SavedSkills");
 }
 
-void USkillComponent::SaveSkills() const
+void USkillComponent::SaveSkills()
 {
 	if (!IsValid(GetOwner()))
 		return;
@@ -24,6 +24,17 @@ void USkillComponent::SaveSkills() const
 	if (const UTCGameInstance* GameInstance = Cast<UTCGameInstance>(UGameplayStatics::GetGameInstance(GetOwner())))
 	{
 		USkill_SaveGame* SaveGame;
+
+		if (GameInstance->LoadSlotIndex == -1)
+		{
+			SkillsSlot.Empty();
+			SkillsSlot = "Skills_Just For Test";
+		}
+		else
+		{
+			SkillsSlot = "SavedSkills";
+			SkillsSlot.Append(FString::FromInt(GameInstance->LoadSlotIndex));
+		}
 		if (UGameplayStatics::DoesSaveGameExist(SkillsSlot, GameInstance->LoadSlotIndex))
 		{
 			SaveGame = Cast<USkill_SaveGame>(
@@ -47,6 +58,16 @@ bool USkillComponent::LoadSkills()
 
 	if (const UTCGameInstance* GameInstance = Cast<UTCGameInstance>(UGameplayStatics::GetGameInstance(GetOwner())))
 	{
+		if (GameInstance->LoadSlotIndex == -1)
+		{
+			SkillsSlot.Empty();
+			SkillsSlot = "Skills_Just For Test";
+		}
+		else
+		{
+			SkillsSlot = "SavedSkills";
+			SkillsSlot.Append(FString::FromInt(GameInstance->LoadSlotIndex));
+		}
 		if (UGameplayStatics::DoesSaveGameExist(SkillsSlot, GameInstance->LoadSlotIndex))
 		{
 			const USkill_SaveGame* SavedSkills = Cast<USkill_SaveGame>(
@@ -60,10 +81,21 @@ bool USkillComponent::LoadSkills()
 	return false;
 }
 
-
-FSkill& USkillComponent::GetSkillInfo(const FDataTableRowHandle& SkillRowHandle)
+void USkillComponent::RestoreSavedSkills(const FDataTableRowHandle& Row)
 {
-	return *SkillRowHandle.DataTable->FindRow<FSkill>(SkillRowHandle.RowName, SkillRowHandle.RowName.ToString());
+	SetPerkToTrue(Row);
+}
+
+
+FSkill USkillComponent::GetSkillInfo(const FDataTableRowHandle& SkillRowHandle)
+{
+	FSkill SkillInfo;
+	if (!SkillRowHandle.IsNull())
+	{
+		SkillInfo = *SkillRowHandle.DataTable->FindRow<FSkill>(SkillRowHandle.RowName,
+		                                                       SkillRowHandle.RowName.ToString());
+	}
+	return SkillInfo;
 }
 
 
@@ -145,12 +177,9 @@ void USkillComponent::SetPerkToTrue(const FDataTableRowHandle& SkillRowHandle)
 {
 	for (int Index = 0; PerksList.IsValidIndex(Index); ++Index)
 	{
-		FPerksList PerkList = PerksList[Index];
-		PerkList.bLearned = true;
-
-		if (PerkList.RowHandle.RowName == SkillRowHandle.RowName)
+		if (PerksList[Index].RowHandle.RowName == SkillRowHandle.RowName)
 		{
-			PerksList.Insert(PerkList, Index);
+			PerksList[Index].bLearned = true;
 		}
 	}
 }

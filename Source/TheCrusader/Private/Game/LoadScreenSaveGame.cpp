@@ -25,6 +25,16 @@ void ULoadScreenSaveGame::ActorSaver(AActor* SaveActor)
 	NewSavedActor.Class = SaveActor->GetClass();
 	NewSavedActor.bActor = true;
 
+	if (SavedMaps.IsEmpty())
+	{
+		FSavedMap Map;
+		Map.MapAssetName = MapAssetName;
+		Map.SavedActors.Empty();
+		SavedMaps.Emplace();
+	}
+
+	SaveData(SaveActor, NewSavedActor.Data);
+
 	const int32 ActorIndex = SavedMaps[MapIndex].SavedActors.Find(NewSavedActor);
 	if (ActorIndex == INDEX_NONE)
 	{
@@ -35,7 +45,6 @@ void ULoadScreenSaveGame::ActorSaver(AActor* SaveActor)
 		SavedMaps[MapIndex].SavedActors[ActorIndex] = NewSavedActor;
 	}
 
-	SaveData(SaveActor, NewSavedActor.Data);
 }
 
 void ULoadScreenSaveGame::UObjectSaver(UObject* SaveObject)
@@ -71,7 +80,7 @@ void ULoadScreenSaveGame::LoadData(UObject* Object, TArray<uint8>& Data)
 	if (Object == nullptr)
 		return;
 
-	FMemoryReader MemoryReader(Data, true);
+	FMemoryReader MemoryReader(Data);
 
 	FObjectAndNameAsStringProxyArchive Archive(MemoryReader, true);
 	Archive.ArIsSaveGame = true;
@@ -88,7 +97,7 @@ FSavedMap ULoadScreenSaveGame::GetSavedMapWithMapName(const FString& InMapName, 
 			return SavedMaps[i];
 		}
 	}
-
+	Index = 0;
 	return FSavedMap();
 }
 

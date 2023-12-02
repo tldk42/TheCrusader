@@ -8,6 +8,9 @@
 #include "Data/SkillDataStruchts.h"
 #include "Skill_Slot.generated.h"
 
+class USkill_Information;
+class USkill_Line;
+class USkill_Category;
 class USkill_Tree;
 class UButton;
 class UProgressBar;
@@ -20,7 +23,17 @@ class THECRUSADER_API USkill_Slot : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	UFUNCTION(BlueprintNativeEvent)
+	void LearnSaves();
+
 	USkill_Tree* GetSkillTreeWBP() const;
+
+	FORCEINLINE FName GetSkillName() const { return Skill_DataTableRowHandle.RowName; }
+
+	void SetCategoryWidget(USkill_Category* InCategory);
+
+	bool CheckRequiredSkills(const TArray<USkill_Slot*>& Skill_Slots,
+	                         const TArray<FDataTableRowHandle>& RowHandles) const;
 
 protected:
 	virtual void NativePreConstruct() override;
@@ -32,23 +45,25 @@ protected:
 
 	UFUNCTION(BlueprintNativeEvent)
 	void Learn();
-	
-	UFUNCTION(BlueprintNativeEvent)
-	void SetupSkillSlots();
+
+
+	UFUNCTION(BlueprintCallable)
+	void SetupSkillSlotsOfCurrentCategory();
 
 private:
 	void PlayVisualEffect();
 
-	void SetStyles(const FSkill& SkillInfo) const;
+	void SetStyles(const FSkill& InSkillInfo) const;
+
+	void SetAdjacentSlots();
 
 	void UpdateBackgroundColor() const;
 
 	TArray<USkill_Slot*> FindNextSlots();
 
-	bool CanLearn() const;
+	void FindConnectors();
 
-	bool CheckRequiredSkills(const TArray<USkill_Slot*>& Skill_Slots,
-	                         const TArray<FDataTableRowHandle>& RowHandles) const;
+	bool CanLearn() const;
 
 	static TArray<const USkill_Slot*> FindRequiredSkillWidgets(const TArray<USkill_Slot*>& Skill_Slots,
 	                                                           const TArray<FDataTableRowHandle>& RowHandles);
@@ -63,20 +78,13 @@ private:
 	void OnClickedEvent();
 
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UTextBlock* SkillLevel;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UProgressBar* ProgressBar;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UButton* Logo;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skill Info")
+#pragma region Data
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill Info", meta = (ExposeOnSpawn))
 	FDataTableRowHandle Skill_DataTableRowHandle;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skill Info")
 	FSkill SkillInfo;
+#pragma endregion Data
 
 #pragma region Colors
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Color")
@@ -91,40 +99,62 @@ protected:
 
 #pragma region Flags
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Bool")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bool", meta = (ExposeOnSpawn))
 	bool bCanBeLearned;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Bool")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bool", meta = (ExposeOnSpawn))
 	bool bLearned;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Bool")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bool", meta = (ExposeOnSpawn))
 	bool bTryingToLearn;
 
-	bool bHoveredTrigger = false; 
-	bool bUnHoveredTrigger = false; 
+	bool bTimerState;
+
+	bool bHoveredTrigger = false;
+	bool bUnHoveredTrigger = false;
 
 #pragma endregion Flags
 
 #pragma region Widgets
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UTextBlock* SkillLevel;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UProgressBar* ProgressBar;
+
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UButton* Logo;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
 	TArray<USkill_Slot*> AllSkillSlots;
 	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
 	TArray<USkill_Slot*> NextSkillSlots;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
-	UUserWidget* PaletteWidget;
+	TArray<USkill_Line*> NextLines;
+	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
+	TArray<USkill_Line*> PreviousLines;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
+	USkill_Category* CategoryWidget;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Widgets")
+	TSubclassOf<USkill_Information> SkillToolTipClass;
+	UPROPERTY(BlueprintReadOnly, Category = "Widgets")
+	USkill_Information* SkillToolTip;
 
 #pragma endregion Widgets
 
 #pragma region WidgetAnimation
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim ), Transient)
 	UWidgetAnimation* OnLearned;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim ), Transient)
 	UWidgetAnimation* OnUnHovered;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (BindWidgetAnim ), Transient)
 	UWidgetAnimation* OnHovered;
 
 #pragma endregion WidgetAnimation

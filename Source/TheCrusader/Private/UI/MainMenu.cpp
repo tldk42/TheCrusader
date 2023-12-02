@@ -8,11 +8,6 @@
 #include "Components/WidgetSwitcher.h"
 #include "UI/Page/PageTitle/PageTitle.h"
 
-void UMainMenu::NativeOnInitialized()
-{
-	Super::NativeOnInitialized();
-}
-
 void UMainMenu::NativeConstruct()
 {
 	Super::NativeConstruct();
@@ -27,7 +22,6 @@ bool UMainMenu::NativeOnDrop(const FGeometry& InGeometry, const FDragDropEvent& 
 {
 	return Super::NativeOnDrop(InGeometry, InDragDropEvent, InOperation);
 }
-
 void UMainMenu::UpdatePage(const int32 NewIndex)
 {
 	const TArray<UWidget*> AllPages = Pages->GetAllChildren();

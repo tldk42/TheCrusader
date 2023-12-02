@@ -11,7 +11,6 @@
 #include "Interfaces/SaveInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "UI/ViewModel/MVVM_LoadSlot.h"
-#include "UObject/ConstructorHelpers.h"
 
 
 void ATheCrusaderGameMode::DeleteSlot(const FString& SlotName, const int32 SlotIndex)
@@ -92,7 +91,7 @@ void ATheCrusaderGameMode::SaveWorldState(const UWorld* World, const FString& De
 {
 	const UTCGameInstance* TCGameInstance = Cast<UTCGameInstance>(GetGameInstance());
 	check(TCGameInstance);
-
+	
 	FString WorldName = World->GetMapName();
 	WorldName.RemoveFromStart(World->StreamingLevelsPrefix);
 
@@ -114,7 +113,9 @@ void ATheCrusaderGameMode::SaveWorldState(const UWorld* World, const FString& De
 		TArray<AActor*> WorldActors;
 		UGameplayStatics::GetAllActorsOfClass(World, AActor::StaticClass(), WorldActors);
 		SaveGame->ActorArraySavor(WorldActors);
-
+		
+		UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
+		return;
 		// int Index;
 		// FSavedMap SavedMap = SaveGame->GetSavedMapWithMapName(WorldName, Index);
 		// SavedMap.SavedActors.Empty();
@@ -155,7 +156,6 @@ void ATheCrusaderGameMode::SaveWorldState(const UWorld* World, const FString& De
 		// 		MapToReplace = SavedMap;
 		// 	}
 		// }
-		UGameplayStatics::SaveGameToSlot(SaveGame, TCGameInstance->LoadSlotName, TCGameInstance->LoadSlotIndex);
 	}
 }
 

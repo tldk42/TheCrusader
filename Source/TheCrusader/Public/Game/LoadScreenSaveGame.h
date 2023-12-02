@@ -98,10 +98,7 @@ struct FSavedInventory
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	FInventoryItem InventoryItem;
 
-	UPROPERTY(BlueprintReadWrite)
-	FName ObjectName = FName();
-
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
 	TArray<uint8> Data;
 };
 

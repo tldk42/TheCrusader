@@ -20,19 +20,23 @@ public:
 	USkillComponent();
 
 	UFUNCTION(BlueprintCallable)
-	void SaveSkills() const;
+	void SaveSkills();
 
 	UFUNCTION(BlueprintCallable)
 	bool LoadSkills();
 
+	UFUNCTION(BlueprintCallable)
+	void RestoreSavedSkills(const FDataTableRowHandle& Row);
+
 	UFUNCTION(BlueprintNativeEvent)
 	void LearnSkill(const FDataTableRowHandle& SkillRowHandle);
 
-	UFUNCTION(BlueprintCallable)
-	static FSkill& GetSkillInfo(const FDataTableRowHandle& SkillRowHandle);
+	UFUNCTION(BlueprintPure)
+	static FSkill GetSkillInfo(const FDataTableRowHandle& SkillRowHandle);
 
 #pragma region GETTER
 	FORCEINLINE int GetAvailablePoint() const { return AvailablePoints; }
+	FORCEINLINE TArray<FPerksList> GetPerksList() const { return PerksList; }
 #pragma endregion GETTER
 
 protected:
@@ -56,6 +60,6 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	FString SkillsSlot;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int AvailablePoints;
 };

@@ -29,7 +29,7 @@ public:
 	FString LoadSlotName = FString();
 
 	UPROPERTY()
-	int32 LoadSlotIndex = 0;
+	int32 LoadSlotIndex = -1;
 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UUserWidget> LoadingScreenWidget;

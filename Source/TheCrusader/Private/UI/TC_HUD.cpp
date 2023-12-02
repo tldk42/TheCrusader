@@ -29,7 +29,7 @@ void ATC_HUD::BeginPlay()
 	if (MainMenuClass)
 	{
 		MainMenuWidget = CreateWidget<UMainMenu>(GetWorld(), MainMenuClass);
-		MainMenuWidget->AddToViewport(5);
+		MainMenuWidget->AddToViewport();
 		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
@@ -76,8 +76,6 @@ void ATC_HUD::ToggleMenu()
 {
 	if (PlayerPawn)
 	{
-		// Player->ActivateInventoryCamera(!bIsMenuVisible);
-
 		if (bIsMenuVisible)
 		{
 			HideMenu();
@@ -90,8 +88,8 @@ void ATC_HUD::ToggleMenu()
 		{
 			DisplayMenu();
 			UGameplayStatics::SetGamePaused(GetWorld(), true);
-			const FInputModeGameAndUI InputModeUI;
-			GetOwningPlayerController()->SetInputMode(InputModeUI);
+			const FInputModeGameAndUI InputModeGameAndUI;
+			GetOwningPlayerController()->SetInputMode(InputModeGameAndUI);
 			GetOwningPlayerController()->SetShowMouseCursor(true);
 		}
 	}
