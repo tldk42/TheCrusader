@@ -108,6 +108,7 @@ void USkill_Slot::LearnSaves_Implementation()
 		{
 			Skill_Tree->UpdateSkillsResult();
 			SetAdjacentSlots();
+			Logo->SetIsEnabled(false);
 		}
 	}
 }
@@ -160,6 +161,7 @@ void USkill_Slot::PlayVisualEffect()
 			PlayAnimation(OnLearned);
 			PlaySound(AllowedSound);
 			SkillLevel->SetText(FText());
+			Logo->SetIsEnabled(false);
 		}
 	}
 	else
@@ -182,7 +184,9 @@ void USkill_Slot::SetStyles(const FSkill& InSkillInfo) const
 	NewButtonStyle.Hovered.TintColor = HoveredColor;
 	NewButtonStyle.Hovered.SetResourceObject(LearnedIcon);
 	NewButtonStyle.Pressed.SetResourceObject(OriginIcon);
-	NewButtonStyle.Disabled.SetResourceObject(OriginIcon);
+	NewButtonStyle.Disabled = NewButtonStyle.Normal;
+	NewButtonStyle.Disabled.SetResourceObject(LearnedIcon);
+	// NewButtonStyle.Disabled.TintColor = LearnedColor;
 
 	Logo->SetStyle(NewButtonStyle);
 
@@ -229,31 +233,28 @@ void USkill_Slot::SetAdjacentSlots()
 
 void USkill_Slot::UpdateBackgroundColor() const
 {
-	if (bCanBeLearned || Logo->IsHovered() || !bLearned || CanLearn())
+	if ((bCanBeLearned || CanLearn()) && Logo->IsHovered() && !bLearned)
 	{
-		if (bLearned)
+		if (bTryingToLearn)
 		{
-			SkillLevel->SetColorAndOpacity(LearnedColor);
-			Logo->SetBackgroundColor(LearnedColor);
+			SkillLevel->SetColorAndOpacity(TryingToLearningColor);
+			Logo->SetBackgroundColor(TryingToLearningColor);
+		}
+		else if (bCanBeLearned)
+		{
+			SkillLevel->SetColorAndOpacity(CanBeLearnedColor);
+			Logo->SetBackgroundColor(CanBeLearnedColor);
 		}
 		else
 		{
-			if (bTryingToLearn)
-			{
-				SkillLevel->SetColorAndOpacity(TryingToLearningColor);
-				Logo->SetBackgroundColor(TryingToLearningColor);
-			}
-			else if (bCanBeLearned)
-			{
-				SkillLevel->SetColorAndOpacity(CanBeLearnedColor);
-				Logo->SetBackgroundColor(CanBeLearnedColor);
-			}
-			else
-			{
-				SkillLevel->SetColorAndOpacity(CannotBeLearnedColor);
-				Logo->SetBackgroundColor(CannotBeLearnedColor);
-			}
+			SkillLevel->SetColorAndOpacity(CannotBeLearnedColor);
+			Logo->SetBackgroundColor(CannotBeLearnedColor);
 		}
+	}
+	else if (bLearned)
+	{
+		SkillLevel->SetColorAndOpacity(LearnedColor);
+		Logo->SetBackgroundColor(LearnedColor);
 	}
 	else
 	{

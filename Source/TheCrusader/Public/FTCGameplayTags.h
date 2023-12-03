@@ -27,9 +27,13 @@ public:
 	FGameplayTag InputTag_Roll;
 	FGameplayTag InputTag_MouseMiddle;
 	FGameplayTag InputTag_MouseWheel;
-	FGameplayTag InputTag_Numpad1;
 	FGameplayTag InputTag_Crouch;
 	FGameplayTag InputTag_RMB_Short;
+	FGameplayTag InputTag_Num1;
+	FGameplayTag InputTag_Num2;
+	FGameplayTag InputTag_Num3;
+	FGameplayTag InputTag_Num4;
+	FGameplayTag InputTag_Num5;
 
 protected:
 	void AddAllTags(UGameplayTagsManager& Manager);

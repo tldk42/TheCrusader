@@ -207,7 +207,8 @@ protected:
 	// 죽으면 지워짐 / 리스폰 되면 다시 부여
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Crusader|Abilities")
 	TArray<TSubclassOf<class UTCGameplayAbility>> CharacterDefaultAbilities;
-	// 시작시에 나타나는 이펙트
+	
+	// 시작시에 적용할 Gameplay Effects (ex. health regen, cooldown..)
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Crusader|Abilities")
 	TArray<TSubclassOf<class UGameplayEffect>> StartupEffects;
 

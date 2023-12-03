@@ -15,7 +15,7 @@ public class TheCrusader : ModuleRules
 				"Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput",
 				"HeadMountedDisplay", "UMG", "SlateCore", "Slate",
 				"GameplayAbilities", "GameplayTasks", "GameplayTags",
-				"MotionWarping", "AIModule", "NavigationSystem"
+				"MotionWarping", "AIModule", "NavigationSystem", "ModelViewViewModel"
 			});
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

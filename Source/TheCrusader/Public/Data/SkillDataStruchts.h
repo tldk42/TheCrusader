@@ -6,6 +6,22 @@
 #include "Engine/DataTable.h"
 #include "SkillDataStruchts.generated.h"
 
+class UTCGameplayAbility;
+
+UENUM(BlueprintType)
+enum class ESkillKeyType : uint8
+{
+	None,
+	Active_1,
+	Active_2,
+	Active_3,
+	Active_4,
+	Active_5,
+	Passive_1,
+	Passive_2,
+	Passive_3
+};
+
 UENUM(BlueprintType)
 enum class ESkillType : uint8
 {
@@ -49,6 +65,9 @@ struct FSkill : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	TSubclassOf<UTCGameplayAbility> AbilityClass;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	ESkillType SkillType;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
@@ -89,4 +108,37 @@ struct FSavedSkill
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	int SkillPoints;
+};
+
+USTRUCT(BlueprintType)
+struct FSavedSkillUIData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	TSubclassOf<UTCGameplayAbility> AbilityClass;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bAllocated;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	UTexture2D* Icon;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString Name;
+};
+
+USTRUCT(BlueprintType)
+struct FSkillInformationWidgetBorder
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float MinX;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float MaxX;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float MinY;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float MaxY;
 };

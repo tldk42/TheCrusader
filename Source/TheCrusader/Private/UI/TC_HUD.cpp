@@ -24,6 +24,12 @@ void ATC_HUD::BeginPlay()
 
 	PlayerPawn = Cast<ABalian>(GameMode->PlayerCharacterRef);
 
+	if (PlayerInGameUIClass)
+	{
+		PlayerInGameUI = CreateWidget<UPlayerInGameUI>(GetWorld(), PlayerInGameUIClass);
+		PlayerInGameUI->AddToViewport(-1);
+		PlayerInGameUI->SetVisibility(ESlateVisibility::Visible);
+	}
 
 	// CPP에서 위젯을 생성할때는 Static클래스를 이용할 수 없다. CPP side의 위젯은 그래픽관련된게 없음
 	if (MainMenuClass)
@@ -33,27 +39,12 @@ void ATC_HUD::BeginPlay()
 		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 	}
 
-	// if (RadialMenuClass)
-	// {
-	// 	RadialMenuWidget = CreateWidget<URadialMenu>(GetWorld(), RadialMenuClass);
-	// 	RadialMenuWidget->AddToViewport();
-	// 	RadialMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
-	// }
-
 	if (CrosshairClass)
 	{
 		CrosshairWidget = CreateWidget<UUserWidget>(GetWorld(), CrosshairClass);
 		CrosshairWidget->AddToViewport();
 		HideCrosshair();
 	}
-
-	if (PlayerInGameUIClass)
-	{
-		PlayerInGameUI = CreateWidget<UPlayerInGameUI>(GetWorld(), PlayerInGameUIClass);
-		PlayerInGameUI->AddToViewport(-1);
-		PlayerInGameUI->SetVisibility(ESlateVisibility::Visible);
-	}
-
 
 	if (InteractionWidgetClass)
 	{

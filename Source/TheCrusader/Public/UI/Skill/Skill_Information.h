@@ -25,8 +25,8 @@ protected:
 	virtual void NativeConstruct() override;
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	USkill_Slot* SkillSlotBeingHovered;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn))
+	UUserWidget* SkillSlotBeingHovered;
 
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))

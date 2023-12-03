@@ -26,6 +26,7 @@
 #include "Item/Weapon/Item_Weapon_Bow.h"
 #include "Kismet/GameplayStatics.h"
 #include "Game/LoadScreenSaveGame.h"
+#include "GAS/Ability/TCGameplayAbility.h"
 #include "Player/TCPlayerController.h"
 
 
@@ -305,31 +306,46 @@ void ABalian::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	{
 		const FTCGameplayTags& GameplayTags = FTCGameplayTags::Get();
 
+		// Movement & Look	
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ThisClass::Move);
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ThisClass::Look);
-
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Spacebar,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::SpaceBarClick);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Roll,
+		                                        ETriggerEvent::Canceled, this, &ThisClass::Dodge);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Roll,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::Roll);
+
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Crouch,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::CrouchPressed);
+
+		// Interact
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::BeginInteract);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
+		                                        ETriggerEvent::Completed, this, &ThisClass::EndInteract);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_MouseMiddle,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::MMBClick);
+
+		// Attack
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_LMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::LMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
 		                                        ETriggerEvent::Triggered, this, &ThisClass::RMBClick);
 		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_RMB,
 		                                        ETriggerEvent::Completed, this, &ThisClass::RMBCompleted);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::BeginInteract);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_E,
-		                                        ETriggerEvent::Completed, this, &ThisClass::EndInteract);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Roll,
-		                                        ETriggerEvent::Canceled, this, &ThisClass::Dodge);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Roll,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::Roll);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_MouseMiddle,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::MMBClick);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Numpad1,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::Ability1);
-		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Crouch,
-		                                        ETriggerEvent::Triggered, this, &ThisClass::CrouchPressed);
+
+		// Skills
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Num1,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::ActivateSkill_1);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Num2,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::ActivateSkill_2);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Num3,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::ActivateSkill_3);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Num4,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::ActivateSkill_4);
+		EnhancedInputComponent->BindActionByTag(InputConfig, GameplayTags.InputTag_Num5,
+		                                        ETriggerEvent::Triggered, this, &ThisClass::ActivateSkill_5);
 	}
 }
 
@@ -343,6 +359,39 @@ void ABalian::RemoveMappingContext() const
 			Subsystem->RemoveMappingContext(DefaultMappingContext);
 			Subsystem->RemoveMappingContext(GASMappingContext);
 		}
+	}
+}
+
+void ABalian::LearnSkill(const FSkill& SkillInfo)
+{
+	if (SkillInfo.AbilityClass)
+	{
+		const FGameplayAbilitySpecHandle GameplayAbilitySpecHandle = AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(
+				SkillInfo.AbilityClass, 1,
+				1, this));
+
+		LearnedSkills.Add(*SkillInfo.Name.ToString(), GameplayAbilitySpecHandle);
+	}
+}
+
+void ABalian::AddSkill(const ESkillKeyType KeyType, const TSubclassOf<UTCGameplayAbility>& SKillAbility)
+{
+	if (SkillAbilityMap.Contains(KeyType))
+	{
+		AbilitySystemComponent->ClearAbility(SkillAbilityMap[KeyType]);
+	}
+	if (SKillAbility)
+	{
+		const FGameplayAbilitySpecHandle GameplayAbilitySpecHandle = AbilitySystemComponent->GiveAbility(
+			FGameplayAbilitySpec(
+				SKillAbility, 1,
+				1, this));
+		SkillAbilityMap.Emplace(KeyType, GameplayAbilitySpecHandle);
+	}
+	else
+	{
+		SkillAbilityMap.Remove(KeyType);
 	}
 }
 
@@ -847,14 +896,6 @@ void ABalian::Roll()
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
-void ABalian::Ability1()
-{
-	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Ability 1 시도"));
-
-	FGameplayTagContainer Container;
-	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Skill.FireBurst"));
-	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
-}
 
 void ABalian::CrouchPressed()
 {
@@ -863,6 +904,68 @@ void ABalian::CrouchPressed()
 	FGameplayTagContainer Container;
 	Container.AddTag(FGameplayTag::RequestGameplayTag("Ability.Movement.Crouch"));
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
+}
+
+void ABalian::ActivateSkill_1()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 1 시도"));
+
+	if (SkillAbilityMap.Contains(ESkillKeyType::Active_1))
+	{
+		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_1]);
+	}
+}
+
+void ABalian::ActivateSkill_2()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 2 시도"));
+
+	if (SkillAbilityMap.Contains(ESkillKeyType::Active_2))
+	{
+		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_2]);
+	}
+}
+
+void ABalian::ActivateSkill_3()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 3 시도"));
+
+	if (SkillAbilityMap.Contains(ESkillKeyType::Active_3))
+	{
+		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_3]);
+	}
+}
+
+void ABalian::ActivateSkill_4()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 4 시도"));
+
+	if (SkillAbilityMap.Contains(ESkillKeyType::Active_4))
+	{
+		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_4]);
+	}
+}
+
+void ABalian::ActivateSkill_5()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 5 시도"));
+
+	if (SkillAbilityMap.Contains(ESkillKeyType::Active_5))
+	{
+		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_5]);
+	}
+}
+
+void ABalian::ActivatePassiveSkill_1()
+{
+}
+
+void ABalian::ActivatePassiveSkill_2()
+{
+}
+
+void ABalian::ActivatePassiveSkill_3()
+{
 }
 
 #pragma endregion ASCBinding

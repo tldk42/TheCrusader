@@ -4,17 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "TCGASCharacter.h"
+#include "Data/SkillDataStruchts.h"
 #include "Interfaces/Interactable.h"
-#include "TheCrusader.h"
 #include "Interfaces/SavableCharacter.h"
 #include "Balian.generated.h"
+
+#pragma region Forward Declaration
 
 class USkillComponent;
 class UTCMovementComponent;
 class AInventoryPreview;
 class UCameraComponent;
 enum class EButtonType : uint8;
-// Forward Declaration
 class AHorse_Base;
 class UItemEquipmentBase;
 class UInputAction;
@@ -27,6 +28,8 @@ class ATC_HUD;
 class UTCInputConfig;
 struct FInputActionValue;
 enum class EEquipmentPart : uint8;
+
+#pragma endregion Forward Declaration
 
 UENUM(BlueprintType)
 enum class ECardinalDirection : uint8
@@ -69,6 +72,12 @@ public:
 	bool UpdateStateByButton(EButtonType BtnType);
 
 	void RemoveMappingContext() const;
+
+	UFUNCTION(BlueprintCallable)
+	void LearnSkill(const FSkill& SkillInfo);
+
+	UFUNCTION(BlueprintCallable)
+	void AddSkill(const ESkillKeyType KeyType, const TSubclassOf<UTCGameplayAbility>& SKillAbility);
 
 #pragma region AI Move TO
 	UFUNCTION(BlueprintImplementableEvent)
@@ -161,21 +170,14 @@ protected:
 	virtual void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags,
 	                       ATCGASCharacter* InstigatorCharacter, AActor* DamageCauser) override;
 
-
-#pragma endregion HandlingAttribute
-
 	virtual void UpdateHealthBar() const override;
 	virtual void UpdateStaminaBar() const override;
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnIsSprintingChanged(bool bNewIsSprinting);
 
-	void FocusCameraToTarget();
+#pragma endregion HandlingAttribute
 
-	void EquipToHand(bool bMelee);
-	void AttachToPelvis(bool bMelee);
-
-	void SetVisibility_Accessory() const;
 
 #pragma region Ability Function
 
@@ -186,6 +188,8 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void ReleaseCamera();
+
+	void FocusCameraToTarget();
 
 #pragma endregion Ability Function
 
@@ -200,8 +204,16 @@ protected:
 	void MMBClick();
 	void Dodge();
 	void Roll();
-	void Ability1();
 	void CrouchPressed();
+
+	void ActivateSkill_1();
+	void ActivateSkill_2();
+	void ActivateSkill_3();
+	void ActivateSkill_4();
+	void ActivateSkill_5();
+	void ActivatePassiveSkill_1();
+	void ActivatePassiveSkill_2();
+	void ActivatePassiveSkill_3();
 
 #pragma endregion InputBinding
 
@@ -233,7 +245,14 @@ protected:
 #pragma endregion Inventory & Interaction Properties
 
 private:
+#pragma region Equip / Dettach / Preview
 	void SpawnPreviewBalian();
+
+	void SetVisibility_Accessory() const;
+
+	void EquipToHand(bool bMelee);
+	void AttachToPelvis(bool bMelee);
+#pragma endregion Equip / Dettach / Preview
 
 private:
 #pragma region Animation (Montage, Layers)
@@ -289,24 +308,7 @@ private:
 
 #pragma endregion FLAGS
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Movement, meta = (AllowPrivateAccess = true))
-	UTCMovementComponent* TCMovementComponent;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Skill, meta = (AllowPrivateAccess = true))
-	USkillComponent* SkillComponent;
-
-	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
-	ATC_HUD* HUD;
-
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	AHorse_Base* OwningHorse;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	TSubclassOf<AInventoryPreview> PreviewCharacterClass;
-
-	UPROPERTY(BlueprintReadWrite, meta = (AllowPrivateAccess = true))
-	AInventoryPreview* PreviewCharacter;
-
+#pragma region Input /  Speed
 	UPROPERTY(EditDefaultsOnly, Meta = (AllowPrivateAccess = "true"))
 	float DesiredSprintSpeed;
 
@@ -318,6 +320,31 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Meta = (AllowPrivateAccess = "true"))
 	float DefaultSprintMinInputSize = 0.5f;
+#pragma endregion Input /  Speed
+
+	UPROPERTY(BlueprintReadOnly, Category = "Crusader|Abilities|Skill", meta = (AllowPrivateAccess = true))
+	TMap<FName, FGameplayAbilitySpecHandle> LearnedSkills;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Crusader|Abilities|Skill", meta = (AllowPrivateAccess = true))
+	TMap<ESkillKeyType, FGameplayAbilitySpecHandle> SkillAbilityMap;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
+	UTCMovementComponent* TCMovementComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skill", meta = (AllowPrivateAccess = true))
+	USkillComponent* SkillComponent;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	ATC_HUD* HUD;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	AHorse_Base* OwningHorse;
+
+	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
+	AInventoryPreview* PreviewCharacter;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, meta = (AllowPrivateAccess = true))
+	TSubclassOf<AInventoryPreview> PreviewCharacterClass;
 
 	friend class AHorse_Base;
 };

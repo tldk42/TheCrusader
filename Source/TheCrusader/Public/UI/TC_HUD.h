@@ -75,19 +75,19 @@ public:
 	bool bIsRadialMenuVisible;
 
 protected:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	UMainMenu* MainMenuWidget;
 
 	UPROPERTY(BlueprintReadWrite)
 	URadialMenu* RadialMenuWidget;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	UPlayerInGameUI* PlayerInGameUI;
 
 	UPROPERTY(BlueprintReadWrite)
 	UUserWidget* CrosshairWidget;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	UInteractionWidget* InteractionWidget;
 
 	UPROPERTY()
