@@ -5,12 +5,14 @@
 #include "CoreMinimal.h"
 #include "TCGASCharacter.h"
 #include "Data/SkillDataStruchts.h"
+#include "Data/UIDataStructs.h"
 #include "Interfaces/Interactable.h"
 #include "Interfaces/SavableCharacter.h"
 #include "Balian.generated.h"
 
 #pragma region Forward Declaration
 
+class UFootStepComponent;
 class USkillComponent;
 class UTCMovementComponent;
 class AInventoryPreview;
@@ -58,10 +60,15 @@ struct FInteractionData
 	float LastInteractionCheckTime;
 };
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSkillTriggered, const ESkillKeyType, const float)
+
 UCLASS()
 class THECRUSADER_API ABalian : public ATCGASCharacter, public ISavableCharacter
 {
 	GENERATED_BODY()
+
+public:
+	FOnSkillTriggered ActiveSkillTriggered;
 
 public:
 	ABalian(const FObjectInitializer& ObjectInitializer);
@@ -69,7 +76,6 @@ public:
 	void LoadProgress();
 
 	void UpdateInteractionWidget() const;
-	bool UpdateStateByButton(EButtonType BtnType);
 
 	void RemoveMappingContext() const;
 
@@ -244,6 +250,14 @@ protected:
 
 #pragma endregion Inventory & Interaction Properties
 
+	void ActivateSkillCoolDown(FGameplayAbilitySpecHandle SkillHandle) const;
+
+	UFUNCTION()
+	void RadialItemSelectedHandler(const FRadialMenuSendData& Data);
+
+	UFUNCTION()
+	void PassiveSkillLearnedHandler(const FRadialMenuItem& SkillButtonInfo);
+
 private:
 #pragma region Equip / Dettach / Preview
 	void SpawnPreviewBalian();
@@ -322,6 +336,15 @@ private:
 	float DefaultSprintMinInputSize = 0.5f;
 #pragma endregion Input /  Speed
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DataTables", meta = (AllowPrivateAccess = true))
+	UDataTable* DT_Menu_State;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DataTables", meta = (AllowPrivateAccess = true))
+	UDataTable* DT_Menu_Skill;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "DataTables", meta = (AllowPrivateAccess = true))
+	UDataTable* DT_Skill;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Crusader|Abilities|Skill", meta = (AllowPrivateAccess = true))
 	TMap<FName, FGameplayAbilitySpecHandle> LearnedSkills;
 
@@ -331,8 +354,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (AllowPrivateAccess = true))
 	UTCMovementComponent* TCMovementComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Skill", meta = (AllowPrivateAccess = true))
-	USkillComponent* SkillComponent;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Skill", meta = (AllowPrivateAccess = true))
+	USkillComponent* SkillComponentS;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "FootStep", meta = (AllowPrivateAccess = true))
+	UFootStepComponent* FootStepComponent;
 
 	UPROPERTY(BlueprintReadOnly, meta = (AllowPrivateAccess = true))
 	ATC_HUD* HUD;

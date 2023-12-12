@@ -2,6 +2,8 @@
 
 
 #include "Character/Balian.h"
+
+#include "AbilitySystemBlueprintLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "FTCGameplayTags.h"
@@ -16,10 +18,10 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Player/TCPlayerState.h"
 #include "UI/TC_HUD.h"
-#include "UI/Radial/RadialButtonBase.h"
 #include "Character/Horse_Base.h"
 #include "Character/InventoryPreview.h"
 #include "Character/Movement/TCMovementComponent.h"
+#include "Component/FootSFX/FootStepComponent.h"
 #include "Component/Skill/SkillComponent.h"
 #include "Game/TheCrusaderGameMode.h"
 #include "GAS/Attribute/TCAttributeSet.h"
@@ -46,9 +48,15 @@ ABalian::ABalian(const FObjectInitializer& ObjectInitializer)
 	InventoryComponent->SetSlotsCapacity(20);
 	InventoryComponent->SetWeightCapacity(50.f);
 
-	SkillComponent = CreateDefaultSubobject<USkillComponent>(TEXT("SkillComponent"));
+	SkillComponentS = CreateDefaultSubobject<USkillComponent>("SkillComponent");
+	FootStepComponent = CreateDefaultSubobject<UFootStepComponent>(TEXT("FootStepComponent"));
 
 	BaseEyeHeight = 74.f;
+
+	if (SkillComponentS)
+	{
+		SkillComponentS->OnPassiveSkillLearned.AddUFunction(this, TEXT("PassiveSkillLearnedHandler"));
+	}
 }
 
 void ABalian::BeginPlay()
@@ -383,10 +391,10 @@ void ABalian::AddSkill(const ESkillKeyType KeyType, const TSubclassOf<UTCGamepla
 	}
 	if (SKillAbility)
 	{
-		const FGameplayAbilitySpecHandle GameplayAbilitySpecHandle = AbilitySystemComponent->GiveAbility(
-			FGameplayAbilitySpec(
-				SKillAbility, 1,
-				1, this));
+		const FGameplayAbilitySpec AbilitySpec = FGameplayAbilitySpec(
+			SKillAbility, 1,
+			1, this);
+		const FGameplayAbilitySpecHandle GameplayAbilitySpecHandle = AbilitySystemComponent->GiveAbility(AbilitySpec);
 		SkillAbilityMap.Emplace(KeyType, GameplayAbilitySpecHandle);
 	}
 	else
@@ -567,9 +575,6 @@ void ABalian::Move(const FInputActionValue& Value)
 
 void ABalian::Look(const FInputActionValue& Value)
 {
-	if (HUD->bIsRadialMenuVisible)
-		return;
-
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (Controller != nullptr)
@@ -906,13 +911,30 @@ void ABalian::CrouchPressed()
 	AbilitySystemComponent->TryActivateAbilitiesByTag(Container);
 }
 
+void ABalian::ActivateSkillCoolDown(const FGameplayAbilitySpecHandle SkillHandle) const
+{
+	const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(SkillHandle);
+	if (AbilitySpec)
+	{
+		float CoolDown, RemainingTime;
+		AbilitySpec->Ability->GetCooldownTimeRemainingAndDuration(
+			SkillHandle, AbilitySystemComponent->AbilityActorInfo.Get(), RemainingTime,
+			CoolDown);
+		ActiveSkillTriggered.Broadcast(ESkillKeyType::Active_1, CoolDown);
+	}
+}
+
 void ABalian::ActivateSkill_1()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 1 시도"));
 
 	if (SkillAbilityMap.Contains(ESkillKeyType::Active_1))
 	{
-		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_1]);
+		const FGameplayAbilitySpecHandle SkillHandle = SkillAbilityMap[ESkillKeyType::Active_1];
+		if (AbilitySystemComponent->TryActivateAbility(SkillHandle))
+		{
+			ActivateSkillCoolDown(SkillHandle);
+		}
 	}
 }
 
@@ -922,7 +944,11 @@ void ABalian::ActivateSkill_2()
 
 	if (SkillAbilityMap.Contains(ESkillKeyType::Active_2))
 	{
-		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_2]);
+		const FGameplayAbilitySpecHandle SkillHandle = SkillAbilityMap[ESkillKeyType::Active_2];
+		if (AbilitySystemComponent->TryActivateAbility(SkillHandle))
+		{
+			ActivateSkillCoolDown(SkillHandle);
+		}
 	}
 }
 
@@ -930,9 +956,10 @@ void ABalian::ActivateSkill_3()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 3 시도"));
 
-	if (SkillAbilityMap.Contains(ESkillKeyType::Active_3))
+	const FGameplayAbilitySpecHandle SkillHandle = SkillAbilityMap[ESkillKeyType::Active_3];
+	if (AbilitySystemComponent->TryActivateAbility(SkillHandle))
 	{
-		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_3]);
+		ActivateSkillCoolDown(SkillHandle);
 	}
 }
 
@@ -940,9 +967,10 @@ void ABalian::ActivateSkill_4()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 4 시도"));
 
-	if (SkillAbilityMap.Contains(ESkillKeyType::Active_4))
+	const FGameplayAbilitySpecHandle SkillHandle = SkillAbilityMap[ESkillKeyType::Active_4];
+	if (AbilitySystemComponent->TryActivateAbility(SkillHandle))
 	{
-		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_4]);
+		ActivateSkillCoolDown(SkillHandle);
 	}
 }
 
@@ -950,9 +978,10 @@ void ABalian::ActivateSkill_5()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange, TEXT("Skill 5 시도"));
 
-	if (SkillAbilityMap.Contains(ESkillKeyType::Active_5))
+	const FGameplayAbilitySpecHandle SkillHandle = SkillAbilityMap[ESkillKeyType::Active_5];
+	if (AbilitySystemComponent->TryActivateAbility(SkillHandle))
 	{
-		AbilitySystemComponent->TryActivateAbility(SkillAbilityMap[ESkillKeyType::Active_5]);
+		ActivateSkillCoolDown(SkillHandle);
 	}
 }
 
@@ -1116,6 +1145,7 @@ void ABalian::Interact()
 	}
 }
 
+
 void ABalian::SpawnPreviewBalian()
 {
 	PreviewCharacter =
@@ -1155,58 +1185,82 @@ void ABalian::SetAnimLayer()
 
 	if (EquipMontages.Contains(CombatMode))
 	{
-		EquipToHand(CombatMode == EWeaponType::Bow ? false : true);
+		EquipToHand(CombatMode != EWeaponType::Bow);
 	}
 
 	if (AnimLayers.Contains(CombatMode))
 	{
 		GetMesh()->LinkAnimClassLayers(AnimLayers[CombatMode]);
 	}
-}
-
-
-bool ABalian::UpdateStateByButton(const EButtonType BtnType)
-{
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-
-	switch (BtnType)
-	{
-	case EButtonType::Idle:
-		GetCharacterMovement()->bOrientRotationToMovement = false;
-		CombatMode = EWeaponType::None;
-		break;
-	case EButtonType::Fist:
-		CombatMode = EWeaponType::Boxer;
-		break;
-	case EButtonType::Sword:
-		if (!CurrentWeapon)
-			return false;
-		CombatMode = CurrentWeapon->GetItemData()->ItemData.WeaponData.Type;
-		break;
-	case EButtonType::Bow:
-		if (!CurrentBow)
-			return false;
-		CombatMode = EWeaponType::Bow;
-		break;
-	case EButtonType::Torch:
-	case EButtonType::Horse:
-		if (OwningHorse)
-		{
-			OwningHorse->MoveToPlayer(GetActorLocation());
-		}
-	// Call Horse
-		return false;
-	default: ;
-	}
-
-	SetAnimLayer();
 
 	if (bIsTargeting)
 	{
 		LockCamera();
 	}
+}
 
-	return true;
+void ABalian::RadialItemSelectedHandler(const FRadialMenuSendData& Data)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, TEXT("Radial Menu Interaction Start"));
+
+	FRadialMenuToState* NewState;
+
+	switch (Data.ItemType)
+	{
+	case ERadialMenu_ItemType::Skill:
+		if (LearnedSkills.Contains(Data.RowName))
+		{
+			AbilitySystemComponent->TryActivateAbility(LearnedSkills[Data.RowName]);
+			const FGameplayAbilitySpec* AbilitySpec = AbilitySystemComponent->FindAbilitySpecFromHandle(
+				LearnedSkills[Data.RowName]);
+			float TimeRemaining, CoolDown;
+			AbilitySpec->Ability->GetCooldownTimeRemainingAndDuration(LearnedSkills[Data.RowName],
+			                                                          AbilitySystemComponent->AbilityActorInfo.Get(),
+			                                                          TimeRemaining, CoolDown);
+		}
+		break;
+	case ERadialMenu_ItemType::State:
+		NewState = DT_Menu_State->FindRow<FRadialMenuToState>(Data.RowName, TEXT("Finding State Data... Missed"));
+		if (NewState)
+		{
+			GetCharacterMovement()->bOrientRotationToMovement = NewState->bOrientRotationToMovement;
+			if (Data.RowName.IsEqual("Melee") && CurrentWeapon)
+			{
+				CombatMode = CurrentWeapon->GetItemData()->ItemData.WeaponData.Type;
+			}
+			else if (Data.RowName.IsEqual("Bow") && CurrentBow)
+			{
+				CombatMode = NewState->CombatMode;
+			}
+			else
+			{
+				CombatMode = NewState->CombatMode;
+			}
+			SetAnimLayer();
+		}
+		break;
+	case ERadialMenu_ItemType::Interaction:
+		break;
+	case ERadialMenu_ItemType::Item:
+		break;
+	default: ;
+	}
+}
+
+void ABalian::PassiveSkillLearnedHandler(const FRadialMenuItem& SkillButtonInfo)
+{
+	FRadialMenuData* SkillMenu = DT_Menu_Skill->FindRow<FRadialMenuData>("Skill", TEXT("No Menu Data Founded"));
+	const FSkill* SkillInfo = DT_Skill->FindRow<FSkill>(*SkillButtonInfo.DisplayName.ToString(),
+	                                                    TEXT("No Founded Skill"));
+
+	if (SkillInfo && SkillMenu)
+	{
+		const int Index = SkillMenu->Items.AddUnique(SkillButtonInfo);
+		if (Index == SkillMenu->Items.Num() - 1)
+		{
+			LearnSkill(*SkillInfo);
+		}
+	}
 }
 
 void ABalian::UpdateHealthBar() const
