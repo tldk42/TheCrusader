@@ -11,5 +11,12 @@ public class TheCrusaderEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_1;
 		ExtraModuleNames.Add("TheCrusader");
+		ExtraModuleNames.AddRange(new string[] { "Parkour", "InteractionSystem" });
+		RegisterModulesCreatedByRider();
+	}
+
+	private void RegisterModulesCreatedByRider()
+	{
+		ExtraModuleNames.AddRange(new string[] { "QuestSystem" });
 	}
 }
