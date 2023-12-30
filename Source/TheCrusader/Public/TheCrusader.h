@@ -72,23 +72,3 @@ enum class ETCMovementState : uint8
 	Ragdoll
 };
 
-UENUM(Blueprintable, BlueprintType)
-enum class ECharacterState : uint8
-{
-	Idle,
-	Patrolling,
-	Investigating,
-	Chasing,
-	Combat,
-	Blocking,
-	Shocked
-};
-
-UENUM(BlueprintType, Blueprintable)
-enum class EAISense : uint8
-{
-	None,
-	Sight,
-	Hearing,
-	Damage
-};
