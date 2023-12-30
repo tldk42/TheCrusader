@@ -22,7 +22,8 @@ public class InteractionSystem : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"UMG",
-				"EnhancedInput"
+				"EnhancedInput",
+				"InteractionSystem"
 			}
 		);
 	}

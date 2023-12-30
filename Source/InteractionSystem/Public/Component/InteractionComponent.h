@@ -43,11 +43,12 @@ protected:
 	void InitPooledMarkerWidgets();
 	void InitPostProcessComponent();
 
-	UFUNCTION()
-	void UpdateInteractionKeys();
 	void OnInteractionTargetUpdated_Client(bool bAdd, const UInteraction_TargetActor* InteractionTarget);
 	void OnPointOfInterestUpdated_Client(bool bAdd, UInteraction_TargetActor* InteractionTarget);
 	void OnInteractionTargetReactivated(UInteraction_TargetActor* InteractionTarget);
+
+	UFUNCTION()
+	void UpdateInteractionKeys();
 	UFUNCTION()
 	void OnInteractionTargetDestroyed(AActor* DestroyedActor);
 	UFUNCTION()

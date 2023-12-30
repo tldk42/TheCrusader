@@ -26,13 +26,11 @@ void UInteractionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	UpdateBestInteractable(NewTarget);
 
 	DebugTrace();
-
-	UE_LOG(LogTemp, Display, TEXT("Interaction Tick"));
 }
 
 void UInteractionComponent::InitPlayerData()
 {
-	OwnerController = Cast<APlayerController>(GetOwner());
+ 	OwnerController = Cast<APlayerController>(GetOwner());
 
 	InitPostProcessComponent();
 	GetWorld()->GetTimerManager().SetTimer(BeginUpdateKeys_TimerHandle,
@@ -326,7 +324,7 @@ void UInteractionComponent::OnPointOfInterestUpdated_Server(const bool bAdd,
 
 			AActor* TargetRef = InteractionTarget->GetTargetRef();
 			check(TargetRef)
-			TargetRef->OnDestroyed.AddDynamic(this, &ThisClass::OnInteractionTargetDestroyed);
+			TargetRef->OnDestroyed.AddDynamic(this, &UInteractionComponent::OnInteractionTargetDestroyed);
 
 			OnPointOfInterestUpdated_Client(true, InteractionTarget);
 		}
@@ -361,7 +359,7 @@ UInteraction_Indicator* UInteractionComponent::FindEmptyWidget()
 {
 	for (UInteraction_Indicator* Widget : WidgetPool)
 	{
-		if (Widget)
+		if (Widget->GetWidgetInteractionTarget() == nullptr)
 		{
 			return Widget;
 		}
@@ -382,13 +380,13 @@ void UInteractionComponent::OnPointOfInterestUpdated_Client(const bool bAdd,
 		}
 		else
 		{
-			UInteraction_Indicator* Indicator = CreateWidget<UInteraction_Indicator>(
-				OwnerController, IndicatorWidgetClass);
-			check(Indicator)
-
-			WidgetPool.AddUnique(Indicator);
-			Indicator->AddToPlayerScreen();
-			Indicator->UpdateInteractionTarget(InteractionTarget);
+			if (UInteraction_Indicator* Indicator = CreateWidget<UInteraction_Indicator>(
+				OwnerController, IndicatorWidgetClass))
+			{
+				WidgetPool.AddUnique(Indicator);
+				Indicator->AddToPlayerScreen();
+				Indicator->UpdateInteractionTarget(InteractionTarget);
+			}
 		}
 	}
 	else
@@ -446,6 +444,7 @@ void UInteractionComponent::CheckForPendingTargets()
 			if (Target->IsPendingTimePassed())
 			{
 				OnInteractionTargetReactivated(Target);
+				return;
 			}
 		}
 	}
@@ -539,33 +538,40 @@ UInteraction_TargetActor* UInteractionComponent::FindBestInteractableTarget()
 	float TempDotProduct = 0.f;
 	UInteraction_TargetActor* NewTargetActor = nullptr;
 
-	for (UInteraction_TargetActor* InteractableTarget : InteractionTargets)
+	if (!InteractionTargets.IsEmpty())
 	{
-		if (InteractableTarget->IsInteractionEnabled())
+		for (UInteraction_TargetActor* InteractableTarget : InteractionTargets)
 		{
-			FVector MarkerLocation = InteractableTarget->GetMarkerTargetComponent()
-			                                           ->GetComponentLocation();
-			FRotator MarkerRotation = InteractableTarget->GetMarkerTargetComponent()
-			                                            ->GetComponentRotation();
-			FVector ActorOrigin = MarkerLocation + MarkerRotation.RotateVector(
-				InteractableTarget->GetMarkerOffset());
-
-
-			FVector CamLookAtVec = (ActorOrigin -
-				OwnerController->PlayerCameraManager->GetCameraLocation()).GetSafeNormal();
-
-			FVector CamForVec = OwnerController->PlayerCameraManager->GetActorForwardVector();
-
-			const float CamToTargetDot = FVector::DotProduct(CamLookAtVec, CamForVec);
-
-			if (CamToTargetDot > .5f && CamToTargetDot > TempDotProduct)
+			if (InteractableTarget->IsInteractionEnabled())
 			{
-				// InteractableTarget->GetOwner()->WasRecentlyRendered(.2f)
-				TempDotProduct = CamToTargetDot;
-				NewTargetActor = InteractableTarget;
+				FVector MarkerLocation = InteractableTarget->GetMarkerTargetComponent()
+				                                           ->GetComponentLocation();
+				FRotator MarkerRotation = InteractableTarget->GetMarkerTargetComponent()
+				                                            ->GetComponentRotation();
+				FVector ActorOrigin = MarkerLocation + MarkerRotation.RotateVector(
+					InteractableTarget->GetMarkerOffset());
+
+
+				FVector CamLookAtVec = (ActorOrigin -
+					OwnerController->PlayerCameraManager->GetCameraLocation()).GetSafeNormal();
+
+				FVector CamForVec = OwnerController->PlayerCameraManager->GetActorForwardVector();
+
+				const float CamToTargetDot = FVector::DotProduct(CamLookAtVec, CamForVec);
+
+				if (CamToTargetDot > .5f && CamToTargetDot > TempDotProduct)
+				{
+					// InteractableTarget->GetOwner()->WasRecentlyRendered(.2f)
+					TempDotProduct = CamToTargetDot;
+					NewTargetActor = InteractableTarget;
+				}
 			}
 		}
 	}
+	else
+	{
+	}
+
 	return NewTargetActor;
 }
 
@@ -630,13 +636,18 @@ void UInteractionComponent::SetNewTarget(UInteraction_TargetActor* NewTarget,
 		if (!CurrentInteractionWidget)
 		{
 			CurrentInteractionWidget = FindEmptyWidget();
-			CurrentInteractionWidget->UpdateInteractionTarget(BestInteractionTarget);
+			if (CurrentInteractionWidget)
+			{
+				CurrentInteractionWidget->UpdateInteractionTarget(BestInteractionTarget);
+			}
 		}
-		check(CurrentInteractionWidget);
-		CurrentInteractionWidget->SetInteractionKeyText(GetInteractionKeys().IsEmpty()
-			                                                ? FKey()
-			                                                : GetInteractionKeys()[0]);
-		CurrentInteractionWidget->OnWidgetNewTarget(true);
+		if (CurrentInteractionWidget)
+		{
+			CurrentInteractionWidget->SetInteractionKeyText(GetInteractionKeys().IsEmpty()
+				                                                ? FKey()
+				                                                : GetInteractionKeys()[0]);
+			CurrentInteractionWidget->OnWidgetNewTarget(true);
+		}
 	}
 	else
 	{

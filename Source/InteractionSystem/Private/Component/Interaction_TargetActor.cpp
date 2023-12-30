@@ -214,24 +214,12 @@ void UInteraction_TargetActor::InitNotifyZones()
 
 	GetOwner()->AddComponent(TEXT("InnerNotify"), false, FTransform::Identity, InnerNotifyZone);
 
-	const FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget,
-	                                                         EAttachmentRule::KeepWorld,
-	                                                         EAttachmentRule::KeepWorld,
-	                                                         false);
-
 	if (ComponentToAttach)
 	{
 		InnerNotifyZone->SetupAttachment(ComponentToAttach);
 		OuterNotifyZone->SetupAttachment(InnerNotifyZone);
 		InnerNotifyZone->RegisterComponent();
 		OuterNotifyZone->RegisterComponent();
-		// 	bool bIsSuccess = InnerNotifyZone->AttachToComponent(ComponentToAttach,
-		// 	                                                     AttachmentTransformRules);
-		// 	if (bIsSuccess)
-		// 	{
-		// 		OuterNotifyZone->AttachToComponent(InnerNotifyZone,
-		// 		                                   AttachmentTransformRules);
-		// 	}
 	}
 
 
@@ -283,16 +271,19 @@ void UInteraction_TargetActor::OnInnerZoneBeginOverlap(UPrimitiveComponent* Over
 {
 	check(OtherActor);
 
+	if (OtherActor == TargetRef)
+		return;
+
 	const APawn* Pawn = Cast<APawn>(OtherActor);
 	check(Pawn)
-	AController* Controller = Pawn->GetController();
-	check(Controller)
-
-	UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller);
-	check(InteractionComponent)
-
-	InteractionComponent->OnInteractionTargetUpdated_Server(true, this);
-	AssignInteractor(Controller);
+	if (AController* Controller = Pawn->GetController())
+	{
+		if (UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller))
+		{
+			InteractionComponent->OnInteractionTargetUpdated_Server(true, this);
+			AssignInteractor(Controller);
+		}
+	}
 }
 
 void UInteraction_TargetActor::OnInnerZoneEndOverlap(UPrimitiveComponent* OverlappedComp,
@@ -302,15 +293,18 @@ void UInteraction_TargetActor::OnInnerZoneEndOverlap(UPrimitiveComponent* Overla
 {
 	check(OtherActor);
 
+	if (OtherActor == TargetRef)
+		return;
+
 	const APawn* Pawn = Cast<APawn>(OtherActor);
 	check(Pawn)
 	const AController* Controller = Pawn->GetController();
-	check(Controller)
 
-	if (UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller))
-	{
-		InteractionComponent->OnInteractionTargetUpdated_Server(false, this);
-	}
+	if (Controller)
+		if (UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller))
+		{
+			InteractionComponent->OnInteractionTargetUpdated_Server(false, this);
+		}
 }
 
 void UInteraction_TargetActor::OnOuterZoneBeginOverlap(UPrimitiveComponent* OverlappedComp,
@@ -319,17 +313,19 @@ void UInteraction_TargetActor::OnOuterZoneBeginOverlap(UPrimitiveComponent* Over
                                                        int32 OtherBodyIndex, bool bFromSweep,
                                                        const FHitResult& SweepResult)
 {
-	check(OtherActor);
+	if (!OtherActor || OtherActor == TargetRef)
+		return;
 
 	const APawn* Pawn = Cast<APawn>(OtherActor);
 	check(Pawn)
-	const AController* Controller = Pawn->GetController();
-	check(Controller)
 
-	UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller);
-	check(InteractionComponent)
-
-	InteractionComponent->OnPointOfInterestUpdated_Server(true, this);
+	if (const AController* Controller = Pawn->GetController())
+	{
+		if (UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller))
+		{
+			InteractionComponent->OnPointOfInterestUpdated_Server(true, this);
+		}
+	}
 }
 
 void UInteraction_TargetActor::OnOuterZoneEndOverlap(UPrimitiveComponent* OverlappedComponent,
@@ -339,16 +335,18 @@ void UInteraction_TargetActor::OnOuterZoneEndOverlap(UPrimitiveComponent* Overla
 {
 	check(OtherActor);
 
+	if (OtherActor == TargetRef)
+		return;
+
 	const APawn* Pawn = Cast<APawn>(OtherActor);
 	check(Pawn)
-	const AController* Controller = Pawn->GetController();
-	check(Controller)
 
-	UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller);
-	check(InteractionComponent)
-
-	InteractionComponent->OnPointOfInterestUpdated_Server(false, this);
-	AssignInteractor(nullptr);
+	if (const AController* Controller = Pawn->GetController())
+		if (UInteractionComponent* InteractionComponent = UInteractionComponent::GetInteractionComponent(Controller))
+		{
+			InteractionComponent->OnPointOfInterestUpdated_Server(false, this);
+			AssignInteractor(nullptr);
+		}
 }
 
 
