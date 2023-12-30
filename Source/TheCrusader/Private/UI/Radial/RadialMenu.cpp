@@ -31,14 +31,14 @@ void URadialMenu::UpdateActiveBar()
 
 		if (ABalian* Player = Cast<ABalian>(GameMode->PlayerCharacterRef))
 		{
-			if (Player->UpdateStateByButton(ActivatedBtn->ButtonType))
-			{
-				if (ActivatedBtn->ButtonType != EButtonType::Horse)
-				{
-					RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
-					CachedIndex = SelectedIndex;
-				}
-			}
+			// if (Player->UpdateStateByButton(ActivatedBtn->ButtonType))
+			// {
+			// 	if (ActivatedBtn->ButtonType != EButtonType::Horse)
+			// 	{
+			// 		RadialMenuMaterial->SetScalarParameterValue(FName("ActiveRotation"), SectionSize * SelectedIndex);
+			// 		CachedIndex = SelectedIndex;
+			// 	}
+			// }
 		}
 	}
 }
@@ -86,7 +86,6 @@ void URadialMenu::NativeConstruct()
 
 FReply URadialMenu::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
-	UpdateActiveBar();
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
